@@ -17,22 +17,22 @@ export class PlaceSummaryDto {
   @ApiProperty({ example: 'India' })
   country: string;
 
-  @ApiPropertyOptional({ nullable: true, example: 'Goa' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'Goa' })
   state: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: 'South Goa' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'South Goa' })
   region: string | null;
 
   @ApiProperty({ enum: PlaceCategory })
   category: PlaceCategory;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   coverImage: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   latitude: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   longitude: number | null;
 
   @ApiProperty({ example: 137, description: 'Published experiences at this place' })
@@ -78,19 +78,24 @@ export class PlaceAggregatesDto {
   @ApiProperty({ example: 3 })
   minSampleSize: number;
 
-  @ApiPropertyOptional({ nullable: true, example: 4.4 })
+  @ApiPropertyOptional({ type: Number, nullable: true, example: 4.4 })
   avgRating: number | null;
 
   @ApiProperty({ type: [CriteriaRatingDto] })
   ratingBreakdown: CriteriaRatingDto[];
 
-  @ApiPropertyOptional({ nullable: true, example: 240, description: 'Average visit, minutes' })
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    example: 240,
+    description: 'Average visit, minutes',
+  })
   avgVisitMinutes: number | null;
 
-  @ApiPropertyOptional({ nullable: true, example: 18500 })
+  @ApiPropertyOptional({ type: Number, nullable: true, example: 18500 })
   avgSpendPerPerson: number | null;
 
-  @ApiPropertyOptional({ nullable: true, example: 4 })
+  @ApiPropertyOptional({ type: Number, nullable: true, example: 4 })
   avgTripDays: number | null;
 
   @ApiProperty({ enum: TravelStyle, isArray: true, example: ['COUPLE', 'BEACH', 'PHOTOGRAPHY'] })
@@ -104,10 +109,10 @@ export class PlaceAggregatesDto {
 }
 
 export class PlaceDetailDto extends PlaceSummaryDto {
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   description: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   city: string | null;
 
   @ApiProperty()

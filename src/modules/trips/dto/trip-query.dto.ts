@@ -1,7 +1,18 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Season, TravelStyle, TripStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  Min,
+} from 'class-validator';
 import { CursorPaginationDto } from 'src/common/dto/pagination.dto';
 
 export const TRIP_SORTS = ['recent', 'oldest', 'popular', 'budget_low', 'budget_high'] as const;
@@ -46,7 +57,11 @@ export class TripQueryDto extends CursorPaginationDto {
   })
   @IsOptional()
   @Transform(({ value }) =>
-    Array.isArray(value) ? value : String(value).split(',').map((v) => v.trim().toUpperCase()),
+    Array.isArray(value)
+      ? value
+      : String(value)
+          .split(',')
+          .map((v) => v.trim().toUpperCase()),
   )
   @IsEnum(TravelStyle, { each: true })
   travelStyles?: TravelStyle[];

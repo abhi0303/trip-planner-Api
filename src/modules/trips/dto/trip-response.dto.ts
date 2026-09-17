@@ -20,16 +20,16 @@ export class MediaDto {
   @ApiProperty()
   url: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   thumbnailUrl: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   blurhash?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   width?: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   height?: number | null;
 }
 
@@ -87,16 +87,16 @@ export class TripPlaceDto {
   @ApiProperty({ type: PlaceSummaryDto })
   place: PlaceSummaryDto;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date' })
   visitDate: Date | null;
 
   @ApiProperty({ example: 0 })
   sequence: number;
 
-  @ApiPropertyOptional({ nullable: true, example: 240 })
+  @ApiPropertyOptional({ type: Number, nullable: true, example: 240 })
   durationMinutes: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   notes: string | null;
 }
 
@@ -110,19 +110,20 @@ export class TripStayDto {
   @ApiPropertyOptional({ type: PlaceSummaryDto, nullable: true })
   place: PlaceSummaryDto | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   location: string | null;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date' })
   checkIn: Date | null;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date' })
   checkOut: Date | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   nights: number | null;
 
   @ApiPropertyOptional({
+    type: Number,
     nullable: true,
     description: 'null when the trip’s expense visibility hides spending',
   })
@@ -131,19 +132,19 @@ export class TripStayDto {
   @ApiProperty()
   currency: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   roomType: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   rating: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   bookingPlatform: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   websiteUrl: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   notes: string | null;
 }
 
@@ -157,10 +158,10 @@ export class TripPhotoDto {
   @ApiPropertyOptional({ type: PlaceSummaryDto, nullable: true })
   place: PlaceSummaryDto | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   caption: string | null;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date-time' })
   takenAt: Date | null;
 
   @ApiProperty()
@@ -174,7 +175,7 @@ export class RatingGroupDto {
   @ApiPropertyOptional({ type: PlaceSummaryDto, nullable: true })
   place: PlaceSummaryDto | null;
 
-  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  @ApiPropertyOptional({ type: String, nullable: true, format: 'uuid' })
   stayId: string | null;
 
   @ApiProperty({ example: { SCENERY: 5, CROWD: 4 }, description: 'criteria → score' })
@@ -211,13 +212,13 @@ export class TripActivityDto {
   @ApiPropertyOptional({ type: PlaceSummaryDto, nullable: true })
   place: PlaceSummaryDto | null;
 
-  @ApiPropertyOptional({ nullable: true, example: '09:30' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: '09:30' })
   startTime: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: '12:00' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: '12:00' })
   endTime: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   notes: string | null;
 
   @ApiProperty()
@@ -231,13 +232,13 @@ export class TripDayDto {
   @ApiProperty({ example: 1 })
   dayNumber: number;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date' })
   date: Date | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   title: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   summary: string | null;
 
   @ApiProperty({ type: [TripActivityDto] })
@@ -261,7 +262,7 @@ export class TripCardDto {
   @ApiProperty({ example: 'IN' })
   countryCode: string;
 
-  @ApiPropertyOptional({ nullable: true, example: 'Goa' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'Goa' })
   state: string | null;
 
   @ApiProperty({ example: 'South Goa' })
@@ -283,6 +284,7 @@ export class TripCardDto {
   travelerCount: number;
 
   @ApiPropertyOptional({
+    type: Number,
     nullable: true,
     example: 50000,
     description: 'null when expenses are hidden from the viewer',
@@ -290,6 +292,7 @@ export class TripCardDto {
   totalExpense: number | null;
 
   @ApiPropertyOptional({
+    type: Number,
     nullable: true,
     example: 25000,
     description: 'null when expenses are hidden from the viewer',
@@ -323,10 +326,14 @@ export class TripCardDto {
   @ApiPropertyOptional({ type: MediaDto, nullable: true })
   coverMedia: MediaDto | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Has the viewer saved this trip?' })
+  @ApiPropertyOptional({
+    type: Boolean,
+    nullable: true,
+    description: 'Has the viewer saved this trip?',
+  })
   isSaved?: boolean | null;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date-time' })
   publishedAt: Date | null;
 }
 
@@ -352,22 +359,22 @@ export class TripDetailDto extends TripCardDto {
   @ApiPropertyOptional({ enum: CrowdLevel, nullable: true })
   crowdLevel: CrowdLevel | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   experience: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   enjoyedMost: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   surprisedBy: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   wentWrong: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   wouldDoDifferently: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   adviceForTravelers: string | null;
 
   @ApiPropertyOptional({

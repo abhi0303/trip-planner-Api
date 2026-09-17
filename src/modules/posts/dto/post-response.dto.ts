@@ -11,7 +11,7 @@ export class PostDto {
   @ApiProperty({ type: UserSummaryDto })
   user: UserSummaryDto;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   caption: string | null;
 
   @ApiProperty({ type: [MediaDto], description: 'Carousel, in order' })
@@ -42,10 +42,10 @@ export class PostDto {
   @ApiProperty({ example: 6 })
   shareCount: number;
 
-  @ApiPropertyOptional({ nullable: true, description: 'null for anonymous viewers' })
+  @ApiPropertyOptional({ type: Boolean, nullable: true, description: 'null for anonymous viewers' })
   isLiked: boolean | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'null for anonymous viewers' })
+  @ApiPropertyOptional({ type: Boolean, nullable: true, description: 'null for anonymous viewers' })
   isSaved: boolean | null;
 
   @ApiProperty({ description: 'Can the viewer edit or delete this post?' })
@@ -65,7 +65,7 @@ export class CommentDto {
   @ApiProperty()
   body: string;
 
-  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  @ApiPropertyOptional({ type: String, nullable: true, format: 'uuid' })
   parentId: string | null;
 
   @ApiProperty({ example: 2 })
@@ -85,7 +85,7 @@ export class CollectionDto {
   @ApiProperty({ example: 'Goa Plans' })
   name: string;
 
-  @ApiPropertyOptional({ nullable: true, example: '🏖️' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: '🏖️' })
   emoji: string | null;
 
   @ApiProperty()

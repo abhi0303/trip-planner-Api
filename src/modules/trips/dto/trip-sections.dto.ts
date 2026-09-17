@@ -197,7 +197,10 @@ export class CreateStayDto {
   @IsDateString({ strict: false })
   checkIn?: string;
 
-  @ApiPropertyOptional({ format: 'date', description: 'nights is derived when both dates are given' })
+  @ApiPropertyOptional({
+    format: 'date',
+    description: 'nights is derived when both dates are given',
+  })
   @IsOptional()
   @IsDateString({ strict: false })
   checkOut?: string;

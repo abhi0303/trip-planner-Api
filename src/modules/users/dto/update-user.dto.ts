@@ -1,14 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import {
-  IsIn,
-  IsOptional,
-  IsString,
-  IsUrl,
-  Length,
-  Matches,
-  MaxLength,
-} from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUrl, Length, Matches, MaxLength } from 'class-validator';
 import { SUPPORTED_CURRENCIES } from 'src/common/constants';
 
 export class UpdateUserDto {

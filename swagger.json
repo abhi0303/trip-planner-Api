@@ -8189,39 +8189,39 @@
             "example": "Sreyanse Pradhan"
           },
           "profileImage": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "isFollowing": {
-            "type": "object",
+            "type": "boolean",
             "description": "Whether the viewer follows this user. null for anonymous callers.",
             "nullable": true
           },
           "email": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "description": "Only present on your own profile"
           },
           "bio": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "coverImage": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "homeCountry": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "IN"
           },
           "homeCity": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Bengaluru"
           },
           "websiteUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "currency": {
@@ -8250,12 +8250,12 @@
             "$ref": "#/components/schemas/UserStatsDto"
           },
           "isFollowedBy": {
-            "type": "object",
+            "type": "boolean",
             "description": "Does this user follow the viewer?",
             "nullable": true
           },
           "isBlocked": {
-            "type": "object",
+            "type": "boolean",
             "description": "Has the viewer blocked this user?",
             "nullable": true
           },
@@ -8505,11 +8505,11 @@
             "example": "Sreyanse Pradhan"
           },
           "profileImage": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "isFollowing": {
-            "type": "object",
+            "type": "boolean",
             "description": "Whether the viewer follows this user. null for anonymous callers.",
             "nullable": true
           }
@@ -8524,7 +8524,7 @@
         "type": "object",
         "properties": {
           "nextCursor": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "description": "Opaque cursor for the next page. null when there is no next page.",
             "example": "eyJpZCI6IjNmYS4uLiIsInYiOiIyMDI2LTA4LTE0In0="
@@ -8560,7 +8560,7 @@
             "example": "India"
           },
           "state": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Goa"
           },
@@ -8573,9 +8573,9 @@
             "example": 12
           },
           "lastVisitedAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date"
+            "format": "date",
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -8609,12 +8609,12 @@
             "example": "India"
           },
           "state": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Goa"
           },
           "region": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "South Goa"
           },
@@ -8653,15 +8653,15 @@
             ]
           },
           "coverImage": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "latitude": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "longitude": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "experienceCount": {
@@ -8839,7 +8839,7 @@
             "example": 3
           },
           "avgRating": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 4.4
           },
@@ -8850,18 +8850,18 @@
             }
           },
           "avgVisitMinutes": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 240,
             "description": "Average visit, minutes"
           },
           "avgSpendPerPerson": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 18500
           },
           "avgTripDays": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 4
           },
@@ -8946,12 +8946,12 @@
             "example": "India"
           },
           "state": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Goa"
           },
           "region": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "South Goa"
           },
@@ -8990,15 +8990,15 @@
             ]
           },
           "coverImage": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "latitude": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "longitude": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "experienceCount": {
@@ -9007,11 +9007,11 @@
             "description": "Published experiences at this place"
           },
           "description": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "city": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "isVerified": {
@@ -9061,19 +9061,19 @@
             "type": "string"
           },
           "thumbnailUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "blurhash": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "width": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "height": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           }
         },
@@ -9105,7 +9105,7 @@
             "example": "IN"
           },
           "state": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Goa"
           },
@@ -9134,13 +9134,13 @@
             "example": 2
           },
           "totalExpense": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 50000,
             "description": "null when expenses are hidden from the viewer"
           },
           "perPerson": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 25000,
             "description": "null when expenses are hidden from the viewer"
@@ -9220,14 +9220,14 @@
             ]
           },
           "isSaved": {
-            "type": "object",
+            "type": "boolean",
             "nullable": true,
             "description": "Has the viewer saved this trip?"
           },
           "publishedAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date-time"
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -9362,21 +9362,21 @@
             "$ref": "#/components/schemas/PlaceSummaryDto"
           },
           "visitDate": {
-            "type": "object",
-            "nullable": true,
-            "format": "date"
+            "format": "date",
+            "type": "string",
+            "nullable": true
           },
           "sequence": {
             "type": "number",
             "example": 0
           },
           "durationMinutes": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 240
           },
           "notes": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           }
         },
@@ -9407,25 +9407,25 @@
             ]
           },
           "location": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "checkIn": {
-            "type": "object",
-            "nullable": true,
-            "format": "date"
+            "format": "date",
+            "type": "string",
+            "nullable": true
           },
           "checkOut": {
-            "type": "object",
-            "nullable": true,
-            "format": "date"
+            "format": "date",
+            "type": "string",
+            "nullable": true
           },
           "nights": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "amount": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "description": "null when the trip’s expense visibility hides spending"
           },
@@ -9433,23 +9433,23 @@
             "type": "string"
           },
           "roomType": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "rating": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "bookingPlatform": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "websiteUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "notes": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           }
         },
@@ -9479,13 +9479,13 @@
             ]
           },
           "caption": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "takenAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date-time"
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
           },
           "sequence": {
             "type": "number"
@@ -9520,7 +9520,7 @@
             ]
           },
           "stayId": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "uuid"
           },
@@ -9598,17 +9598,17 @@
             ]
           },
           "startTime": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "09:30"
           },
           "endTime": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "12:00"
           },
           "notes": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "sequence": {
@@ -9634,16 +9634,16 @@
             "example": 1
           },
           "date": {
-            "type": "object",
-            "nullable": true,
-            "format": "date"
+            "format": "date",
+            "type": "string",
+            "nullable": true
           },
           "title": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "summary": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "activities": {
@@ -9682,7 +9682,7 @@
             "example": "IN"
           },
           "state": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Goa"
           },
@@ -9711,13 +9711,13 @@
             "example": 2
           },
           "totalExpense": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 50000,
             "description": "null when expenses are hidden from the viewer"
           },
           "perPerson": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 25000,
             "description": "null when expenses are hidden from the viewer"
@@ -9797,14 +9797,14 @@
             ]
           },
           "isSaved": {
-            "type": "object",
+            "type": "boolean",
             "nullable": true,
             "description": "Has the viewer saved this trip?"
           },
           "publishedAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date-time"
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
           },
           "status": {
             "type": "string",
@@ -9860,27 +9860,27 @@
             "nullable": true
           },
           "experience": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "enjoyedMost": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "surprisedBy": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "wentWrong": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "wouldDoDifferently": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "adviceForTravelers": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "expenses": {
@@ -10943,7 +10943,7 @@
             "$ref": "#/components/schemas/UserSummaryDto"
           },
           "caption": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "media": {
@@ -10998,12 +10998,12 @@
             "example": 6
           },
           "isLiked": {
-            "type": "object",
+            "type": "boolean",
             "nullable": true,
             "description": "null for anonymous viewers"
           },
           "isSaved": {
-            "type": "object",
+            "type": "boolean",
             "nullable": true,
             "description": "null for anonymous viewers"
           },
@@ -11129,7 +11129,7 @@
             "type": "string"
           },
           "parentId": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "uuid"
           },
@@ -11183,7 +11183,7 @@
             "example": "Goa Plans"
           },
           "emoji": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "🏖️"
           },

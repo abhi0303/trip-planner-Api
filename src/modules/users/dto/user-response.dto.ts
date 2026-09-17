@@ -12,10 +12,11 @@ export class UserSummaryDto {
   @ApiProperty({ example: 'Sreyanse Pradhan' })
   name: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   profileImage: string | null;
 
   @ApiPropertyOptional({
+    type: Boolean,
     description: 'Whether the viewer follows this user. null for anonymous callers.',
     nullable: true,
   })
@@ -44,24 +45,25 @@ export class UserStatsDto {
 
 export class UserProfileDto extends UserSummaryDto {
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     description: 'Only present on your own profile',
   })
   email?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   bio: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   coverImage: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: 'IN' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'IN' })
   homeCountry: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: 'Bengaluru' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'Bengaluru' })
   homeCity: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   websiteUrl: string | null;
 
   @ApiProperty({ example: 'INR', description: 'Preferred display currency' })
@@ -76,10 +78,18 @@ export class UserProfileDto extends UserSummaryDto {
   @ApiProperty({ type: UserStatsDto })
   stats: UserStatsDto;
 
-  @ApiPropertyOptional({ description: 'Does this user follow the viewer?', nullable: true })
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Does this user follow the viewer?',
+    nullable: true,
+  })
   isFollowedBy?: boolean | null;
 
-  @ApiPropertyOptional({ description: 'Has the viewer blocked this user?', nullable: true })
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Has the viewer blocked this user?',
+    nullable: true,
+  })
   isBlocked?: boolean | null;
 
   @ApiProperty({ example: true, description: 'Is this the viewer’s own profile?' })
@@ -97,7 +107,7 @@ export class TravelMapEntryDto {
   @ApiProperty({ example: 'India' })
   country: string;
 
-  @ApiPropertyOptional({ nullable: true, example: 'Goa' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'Goa' })
   state: string | null;
 
   @ApiProperty({ example: 3 })
@@ -106,6 +116,6 @@ export class TravelMapEntryDto {
   @ApiProperty({ example: 12 })
   placeCount: number;
 
-  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  @ApiPropertyOptional({ type: Date, nullable: true, format: 'date' })
   lastVisitedAt: Date | null;
 }

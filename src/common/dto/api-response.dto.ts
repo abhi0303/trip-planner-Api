@@ -17,6 +17,7 @@ export class ApiEnvelopeDto<T = unknown> {
 
 export class PaginationMetaDto {
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     description: 'Opaque cursor for the next page. null when there is no next page.',
     example: 'eyJpZCI6IjNmYS4uLiIsInYiOiIyMDI2LTA4LTE0In0=',

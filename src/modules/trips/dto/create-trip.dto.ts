@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  CrowdLevel,
-  ExpenseMode,
-  TravelStyle,
-  Visibility,
-  Weather,
-} from '@prisma/client';
+import { CrowdLevel, ExpenseMode, TravelStyle, Visibility, Weather } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
