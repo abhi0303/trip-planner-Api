@@ -37,10 +37,20 @@ services:
       - key: DATABASE_URL
         sync: false
       # Direct connection for `prisma migrate deploy` during the build.
-      # MUST NOT contain '-pooler' — in the Neon console choose
-      # Connect > Direct connection. The build refuses to migrate otherwise.
+      # MUST NOT contain '-pooler' — in the Neon console that is
+      # Connect > "Connection pooling" toggle OFF. The build refuses to
+      # migrate otherwise.
       - key: DIRECT_URL
         sync: false
+
+      # Prisma Migrate serialises itself with a session-scoped advisory lock.
+      # A migration killed mid-run can leave that lock held on a Neon compute,
+      # and every later deploy then fails with P1002 until the compute is
+      # restarted. One instance runs migrations here, so the lock protects
+      # nothing worth that failure mode. Remove this if migrations ever run
+      # from more than one place at once.
+      - key: PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK
+        value: 'true'
 
       # --- Auth ----------------------------------------------------------
       - key: JWT_ACCESS_SECRET

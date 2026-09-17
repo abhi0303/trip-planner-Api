@@ -568,6 +568,46 @@ That marks it rolled back without touching your rows — but any objects it
 already created still exist, so drop those specific objects first or the retry
 hits the same "already exists" error.
 
+### A deploy fails with P1002 "advisory lock"
+
+```
+Error: P1002   The database server was reached but timed out.
+Context: Timed out trying to acquire a postgres advisory lock
+         (SELECT pg_advisory_lock(72707369)). Timeout: 10000ms.
+```
+
+Prisma Migrate takes a session-scoped advisory lock so two deploys cannot
+migrate at once. A migration that was killed mid-run — a build timeout, a
+cancelled deploy, or an earlier attempt through the pooler — can leave that
+lock held by a backend that is still alive on the Neon compute. Every later
+deploy then waits 10 seconds for it and gives up.
+
+Note this is *not* the same as P3009: the schema is fine, nothing is
+half-applied, the migration simply never gets to start.
+
+**Clear the stuck lock.** Easiest is Neon console → **Computes → Restart**,
+which drops every backend and releases all advisory locks. To see it first, or
+to avoid a restart:
+
+```sql
+-- who holds the migration lock
+SELECT l.pid, a.state, now() - a.state_change AS held_for
+FROM pg_locks l
+JOIN pg_stat_activity a ON a.pid = l.pid
+WHERE l.locktype = 'advisory' AND l.objid = 72707369;
+
+-- release it
+SELECT pg_terminate_backend(l.pid)
+FROM pg_locks l
+WHERE l.locktype = 'advisory' AND l.objid = 72707369;
+```
+
+**Stop it recurring.** `render.yaml` sets
+`PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true`. Exactly one instance runs
+migrations here, so the lock guards against a collision that cannot happen,
+while costing a hard deploy failure whenever it leaks. Drop that variable if
+migrations ever run from more than one place at once.
+
 ### The preflight did not run in my build
 
 `render.yaml` only drives a service that Render created **from a Blueprint**. A
