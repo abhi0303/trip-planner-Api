@@ -17,7 +17,10 @@ services:
     # Match the Neon project region to keep the database round trip short.
     region: singapore
     branch: main
-    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    # preflight-db refuses to migrate through Neon's pooled endpoint. Prisma
+    # migrations are not transactional, so DDL through PgBouncer can half-apply
+    # and wedge the database — see the recovery runbook in README.md.
+    buildCommand: npm ci && node scripts/preflight-db.mjs && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /health
     autoDeploy: true
@@ -34,6 +37,8 @@ services:
       - key: DATABASE_URL
         sync: false
       # Direct connection for `prisma migrate deploy` during the build.
+      # MUST NOT contain '-pooler' — in the Neon console choose
+      # Connect > Direct connection. The build refuses to migrate otherwise.
       - key: DIRECT_URL
         sync: false
 

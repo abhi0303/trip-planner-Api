@@ -9,6 +9,20 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
+    // Plain Node scripts (build preflight) run outside the TS program, so the
+    // runtime globals have to be declared for no-undef.
+    files: ['**/*.mjs', '**/*.js'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+      },
+    },
+  },
+  {
     languageOptions: {
       parserOptions: { sourceType: 'module' },
     },

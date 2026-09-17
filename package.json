@@ -1,7 +1,7 @@
 {
   "name": "tripsphere-api",
   "version": "0.1.0",
-  "description": "TripSphere — travel experience social platform API",
+  "description": "TripSphere \u2014 travel experience social platform API",
   "license": "UNLICENSED",
   "private": true,
   "engines": {
@@ -20,13 +20,14 @@
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "db:check": "node scripts/preflight-db.mjs",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:reset": "prisma migrate reset --force",
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "swagger:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger.ts",
     "swagger:check": "npm run swagger:generate && git diff --exit-code --stat swagger.json",
-    "render:build": "npm ci && prisma generate && prisma migrate deploy && nest build",
+    "render:build": "npm ci && node scripts/preflight-db.mjs && prisma generate && prisma migrate deploy && nest build",
     "postinstall": "prisma generate"
   },
   "prisma": {

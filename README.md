@@ -414,6 +414,7 @@ npm run prisma:studio      # browse the data
 npm run seed               # reset to demo data
 npm run swagger:generate   # rewrite swagger.json
 npm run swagger:check      # fail if swagger.json has drifted from the code
+npm run db:check           # verify DATABASE_URL / DIRECT_URL before migrating
 ```
 
 ---
@@ -499,6 +500,63 @@ picked up `MEDIA_DRIVER=neon`:
 ```json
 { "status": "ok", "database": "up", "storage": "neon" }
 ```
+
+### A deploy failed mid-migration
+
+Symptom, in the Render build log:
+
+```
+Applying migration `20260917155425_init`
+Error: P3018   Database error code: 42710
+ERROR: type "Visibility" already exists
+```
+
+**What happened.** Prisma does not wrap a migration in a transaction. A
+migration that fails partway leaves some objects created and the migration
+recorded in `_prisma_migrations` as started-but-unfinished
+(`applied_steps_count = 0`). `migrate deploy` then refuses to do anything until
+that record is cleared — so every later deploy fails on the same error, even
+after the original cause is fixed.
+
+**Why it usually happens here:** `DIRECT_URL` pointing at Neon's pooled
+endpoint. DDL through PgBouncer in transaction mode is unreliable, and this is
+the failure it produces. `npm run db:check` now refuses to migrate in that
+configuration, but a database already wedged has to be repaired by hand.
+
+**Fix it in two steps.**
+
+1. **Correct the variable.** In Render, `DIRECT_URL` must be the connection
+   string *without* `-pooler` in the hostname (Neon console → Connect → Direct
+   connection). `DATABASE_URL` keeps `-pooler`. Confirm locally:
+
+   ```bash
+   DATABASE_URL=... DIRECT_URL=... npm run db:check
+   ```
+
+2. **Clear the half-applied schema.** Because the migration that failed is the
+   *initial* one, there is no data to preserve — the schema never finished being
+   created. In the Neon console SQL editor:
+
+   ```sql
+   -- Destructive: drops every table, enum and row in this database.
+   -- Safe here only because the initial migration never completed.
+   DROP SCHEMA public CASCADE;
+   CREATE SCHEMA public;
+   ```
+
+   Then redeploy. The build applies the migration cleanly and reports
+   `All migrations have been successfully applied.`
+
+**If a later migration fails once there is real data**, do not drop the schema.
+Clear the failed record and let it retry instead:
+
+```bash
+npx prisma migrate resolve --rolled-back <migration_name>
+```
+
+That marks it rolled back without touching your rows — but any objects it
+already created still exist, so drop those specific objects first or the retry
+hits the same "already exists" error.
 
 Two things worth knowing about the free tiers: Render free instances sleep after
 inactivity, so the first request after a pause is slow, and Neon Object Storage
