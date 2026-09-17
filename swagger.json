@@ -3135,11 +3135,6 @@
             }
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Expense breakdown and intelligence",
         "tags": [
           "Trip content"

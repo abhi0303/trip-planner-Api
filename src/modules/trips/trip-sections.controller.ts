@@ -44,7 +44,6 @@ import { TripsService } from './trips.service';
 
 /** Wizard steps 4-9, each addressable on its own so drafts save incrementally. */
 @ApiTags('Trip content')
-@ApiBearerAuth()
 @Controller('trips/:tripId')
 export class TripSectionsController {
   constructor(
@@ -55,6 +54,7 @@ export class TripSectionsController {
 
   // --- Places ---------------------------------------------------------------
 
+  @ApiBearerAuth()
   @Post('places')
   @ApiOperation({
     summary: 'Add a place to the trip',
@@ -70,6 +70,7 @@ export class TripSectionsController {
     return this.sections.addPlace(tripId, user.id, dto);
   }
 
+  @ApiBearerAuth()
   @Patch('places/:tripPlaceId')
   @ApiOperation({ summary: 'Update a place on the trip' })
   @ApiEnvelope(TripPlaceDto)
@@ -83,6 +84,7 @@ export class TripSectionsController {
     return this.sections.updatePlace(tripId, tripPlaceId, user.id, dto);
   }
 
+  @ApiBearerAuth()
   @Delete('places/:tripPlaceId')
   @ApiOperation({ summary: 'Remove a place from the trip' })
   @ApiEnvelope(MessageDto)
@@ -95,6 +97,7 @@ export class TripSectionsController {
     return this.sections.removePlace(tripId, tripPlaceId, user.id);
   }
 
+  @ApiBearerAuth()
   @Put('places/order')
   @ApiOperation({
     summary: 'Reorder the route',
@@ -130,6 +133,7 @@ export class TripSectionsController {
     return trip.expenses;
   }
 
+  @ApiBearerAuth()
   @Post('expenses')
   @ApiOperation({ summary: 'Add one expense line item' })
   @ApiEnvelope(Object, { status: 201 })
@@ -143,6 +147,7 @@ export class TripSectionsController {
     return this.expenses.create(tripId, dto);
   }
 
+  @ApiBearerAuth()
   @Put('expenses')
   @ApiOperation({
     summary: 'Replace all expense line items',
@@ -159,6 +164,7 @@ export class TripSectionsController {
     return this.expenses.replaceAll(tripId, dto);
   }
 
+  @ApiBearerAuth()
   @Patch('expenses/:expenseId')
   @ApiOperation({ summary: 'Update an expense line item' })
   @ApiEnvelope(Object)
@@ -171,6 +177,7 @@ export class TripSectionsController {
     return this.expenses.update(expenseId, dto, user.id);
   }
 
+  @ApiBearerAuth()
   @Delete('expenses/:expenseId')
   @ApiOperation({ summary: 'Delete an expense line item' })
   @ApiEnvelope(MessageDto)
@@ -184,6 +191,7 @@ export class TripSectionsController {
 
   // --- Stays ----------------------------------------------------------------
 
+  @ApiBearerAuth()
   @Post('stays')
   @ApiOperation({ summary: 'Add a stay', description: 'A trip can have several (spec §12).' })
   @ApiEnvelope(TripStayDto, { status: 201 })
@@ -196,6 +204,7 @@ export class TripSectionsController {
     return this.sections.addStay(tripId, user.id, dto);
   }
 
+  @ApiBearerAuth()
   @Patch('stays/:stayId')
   @ApiOperation({ summary: 'Update a stay' })
   @ApiEnvelope(TripStayDto)
@@ -209,6 +218,7 @@ export class TripSectionsController {
     return this.sections.updateStay(tripId, stayId, user.id, dto);
   }
 
+  @ApiBearerAuth()
   @Delete('stays/:stayId')
   @ApiOperation({ summary: 'Remove a stay' })
   @ApiEnvelope(MessageDto)
@@ -223,6 +233,7 @@ export class TripSectionsController {
 
   // --- Photos ---------------------------------------------------------------
 
+  @ApiBearerAuth()
   @Post('photos')
   @ApiOperation({
     summary: 'Attach uploaded photos to the trip',
@@ -239,6 +250,7 @@ export class TripSectionsController {
     return this.sections.addPhotos(tripId, user.id, dto);
   }
 
+  @ApiBearerAuth()
   @Delete('photos/:photoId')
   @ApiOperation({ summary: 'Remove a photo from the trip' })
   @ApiEnvelope(MessageDto)
@@ -253,6 +265,7 @@ export class TripSectionsController {
 
   // --- Ratings --------------------------------------------------------------
 
+  @ApiBearerAuth()
   @Put('ratings')
   @ApiOperation({
     summary: 'Submit or update a rating group',
@@ -271,6 +284,7 @@ export class TripSectionsController {
 
   // --- Reality checks -------------------------------------------------------
 
+  @ApiBearerAuth()
   @Post('reality-checks')
   @ApiOperation({
     summary: 'Add a reality check',
@@ -286,6 +300,7 @@ export class TripSectionsController {
     return this.sections.addRealityCheck(tripId, user.id, dto);
   }
 
+  @ApiBearerAuth()
   @Delete('reality-checks/:id')
   @ApiOperation({ summary: 'Remove a reality check' })
   @ApiEnvelope(MessageDto)
