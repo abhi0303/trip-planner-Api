@@ -27,7 +27,7 @@
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "swagger:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger.ts",
     "swagger:check": "npm run swagger:generate && git diff --exit-code --stat swagger.json",
-    "render:build": "npm ci && node scripts/preflight-db.mjs && prisma generate && prisma migrate deploy && nest build",
+    "render:build": "npm ci --include=dev && node scripts/preflight-db.mjs && prisma generate && prisma migrate deploy && nest build",
     "postinstall": "prisma generate"
   },
   "prisma": {

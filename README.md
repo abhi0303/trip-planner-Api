@@ -608,6 +608,20 @@ migrations here, so the lock guards against a collision that cannot happen,
 while costing a hard deploy failure whenever it leaks. Drop that variable if
 migrations ever run from more than one place at once.
 
+### A deploy fails with `sh: 1: nest: not found`
+
+`NODE_ENV=production` makes npm omit devDependencies — it maps to
+`--omit=dev` — and the build tooling (`@nestjs/cli`, `typescript`) lives there.
+`npm ci` therefore installs nothing that can compile the project, and the build
+dies the moment it reaches `nest build`.
+
+The build command uses `npm ci --include=dev`, which restores them regardless
+of `NODE_ENV`. Runtime is unaffected: `npm run start:prod` runs plain
+`node dist/src/main.js` and needs only the production dependencies.
+
+`npx prisma …` steps keep working either way, because npx fetches the CLI on
+demand — which is why migrations can succeed in a build that cannot compile.
+
 ### The preflight did not run in my build
 
 `render.yaml` only drives a service that Render created **from a Blueprint**. A

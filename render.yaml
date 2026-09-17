@@ -20,7 +20,10 @@ services:
     # preflight-db refuses to migrate through Neon's pooled endpoint. Prisma
     # migrations are not transactional, so DDL through PgBouncer can half-apply
     # and wedge the database — see the recovery runbook in README.md.
-    buildCommand: npm ci && node scripts/preflight-db.mjs && npx prisma generate && npx prisma migrate deploy && npm run build
+    # --include=dev is required: NODE_ENV=production below makes npm omit
+    # devDependencies, and the build tooling (@nestjs/cli, typescript) lives
+    # there. Without it the build dies on "sh: 1: nest: not found".
+    buildCommand: npm ci --include=dev && node scripts/preflight-db.mjs && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /health
     autoDeploy: true
