@@ -1,3 +1,9 @@
+# Optional local services. The project targets Neon for both Postgres and
+# object storage; these exist so you can work offline, and so the S3 code path
+# can be exercised without burning Neon credentials.
+#
+#   docker compose up -d                  # Postgres only
+#   docker compose --profile storage up -d # Postgres + MinIO (S3-compatible)
 services:
   postgres:
     image: postgres:16-alpine
@@ -17,5 +23,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # Stands in for Neon Object Storage locally. Both are S3-compatible, so the
+  # same driver and the same env vars drive either one.
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: tripsphere-minio
+    profiles: ['storage']
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: tripsphere
+      MINIO_ROOT_PASSWORD: tripsphere-secret
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - tripsphere-minio:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9000/minio/health/live || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   tripsphere-pgdata:
+  tripsphere-minio:

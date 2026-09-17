@@ -13,8 +13,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Neon serves two endpoints for the same database. The app uses the pooled
+  // one (host contains "-pooler"); Prisma Migrate needs a direct session, which
+  // PgBouncer cannot give it, so migrations go through DIRECT_URL.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------

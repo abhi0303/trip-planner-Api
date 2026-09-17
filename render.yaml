@@ -1,15 +1,20 @@
 # Render blueprint — https://render.com/docs/blueprint-spec
 #
-# Deploy: push this repo, then New > Blueprint in the Render dashboard.
-# GOOGLE_CLIENT_ID is optional; /auth/google returns 501 until it is set.
+# Render runs the web service only. Postgres and file storage are both Neon, so
+# there is no `databases:` block here and nothing stateful on Render.
 #
-# Note: the free plan has no persistent disk, so uploaded images are lost on
-# every deploy. Set MEDIA_DRIVER to an object store before real traffic.
+# Deploy:
+#   1. Create the Neon project, then a bucket:
+#        neon buckets create tripsphere-media --access-level public_read
+#        neon credentials create --scope storage:read --scope storage:write
+#   2. Push this repo, then New > Blueprint in the Render dashboard.
+#   3. Fill in the envVars marked `sync: false` (Render prompts for them).
 services:
   - type: web
     name: tripsphere-api
     runtime: node
     plan: free
+    # Match the Neon project region to keep the database round trip short.
     region: singapore
     branch: main
     buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
@@ -23,10 +28,16 @@ services:
         value: production
       - key: API_PREFIX
         value: api/v1
+
+      # --- Neon Postgres -------------------------------------------------
+      # Pooled connection (host contains "-pooler") for the app.
       - key: DATABASE_URL
-        fromDatabase:
-          name: tripsphere-db
-          property: connectionString
+        sync: false
+      # Direct connection for `prisma migrate deploy` during the build.
+      - key: DIRECT_URL
+        sync: false
+
+      # --- Auth ----------------------------------------------------------
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -35,11 +46,29 @@ services:
         value: 15m
       - key: JWT_REFRESH_TTL
         value: 30d
-      - key: CORS_ORIGINS
+      - key: GOOGLE_CLIENT_ID
         sync: false
+
+      # --- Neon Object Storage -------------------------------------------
       - key: MEDIA_DRIVER
-        value: local
-      - key: MEDIA_BASE_URL
+        value: neon
+      - key: NEON_STORAGE_ENDPOINT
+        sync: false
+      - key: NEON_STORAGE_REGION
+        value: us-east-2
+      - key: NEON_STORAGE_BUCKET
+        value: tripsphere-media
+      - key: NEON_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: NEON_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: NEON_STORAGE_ACCESS_LEVEL
+        value: public_read
+      - key: MEDIA_MAX_FILE_SIZE_MB
+        value: '10'
+
+      # --- App -----------------------------------------------------------
+      - key: CORS_ORIGINS
         sync: false
       - key: SWAGGER_ENABLED
         value: 'true'
@@ -51,9 +80,3 @@ services:
         value: '60'
       - key: THROTTLE_LIMIT
         value: '120'
-
-databases:
-  - name: tripsphere-db
-    plan: free
-    region: singapore
-    postgresMajorVersion: '16'

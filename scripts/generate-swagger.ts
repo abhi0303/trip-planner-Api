@@ -15,8 +15,15 @@ async function generate(): Promise<void> {
   // The env validator demands real secrets; placeholders keep the generator
   // runnable in CI without a database or a configured environment.
   process.env.DATABASE_URL ||= 'postgresql://user:pass@localhost:5432/db?schema=public';
+  process.env.DIRECT_URL ||= process.env.DATABASE_URL;
   process.env.JWT_ACCESS_SECRET ||= 'swagger-generation-placeholder-secret-value';
   process.env.JWT_REFRESH_SECRET ||= 'swagger-generation-placeholder-secret-value';
+
+  // Forced, not defaulted: the storage driver does not affect a single route or
+  // schema, and the Neon driver verifies its bucket at boot. Without this,
+  // `npm run swagger:check` in CI would need live object storage to document
+  // routes that have nothing to do with it.
+  process.env.MEDIA_DRIVER = 'local';
 
   const app = await NestFactory.create(AppModule, { logger: false });
   const apiPrefix = process.env.API_PREFIX ?? 'api/v1';

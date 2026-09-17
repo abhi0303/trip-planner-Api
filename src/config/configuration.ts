@@ -21,9 +21,19 @@ export default () => ({
   },
 
   media: {
+    /** 'neon' (Neon Object Storage) or 'local' (./uploads, dev only). */
     driver: process.env.MEDIA_DRIVER ?? 'local',
     baseUrl: process.env.MEDIA_BASE_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`,
     maxFileSizeMb: parseInt(process.env.MEDIA_MAX_FILE_SIZE_MB ?? '10', 10),
+    neon: {
+      endpoint: process.env.NEON_STORAGE_ENDPOINT ?? '',
+      region: process.env.NEON_STORAGE_REGION ?? 'us-east-2',
+      bucket: process.env.NEON_STORAGE_BUCKET ?? '',
+      accessKeyId: process.env.NEON_STORAGE_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.NEON_STORAGE_SECRET_ACCESS_KEY ?? '',
+      /** 'public_read' serves objects directly; 'private' needs presigned URLs. */
+      accessLevel: process.env.NEON_STORAGE_ACCESS_LEVEL ?? 'public_read',
+    },
   },
 
   swagger: {

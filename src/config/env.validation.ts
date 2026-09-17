@@ -25,6 +25,34 @@ class EnvironmentVariables {
   @IsString()
   @MinLength(32, { message: 'JWT_REFRESH_SECRET must be at least 32 characters' })
   JWT_REFRESH_SECRET: string;
+
+  @IsOptional()
+  @IsIn(['neon', 'local'])
+  MEDIA_DRIVER?: string;
+}
+
+/**
+ * MEDIA_DRIVER=neon needs four more variables. Checked separately so the
+ * message can name every missing one at once instead of one per restart.
+ */
+function validateStorage(config: Record<string, unknown>): void {
+  if (config.MEDIA_DRIVER !== 'neon') return;
+
+  const required = [
+    'NEON_STORAGE_ENDPOINT',
+    'NEON_STORAGE_BUCKET',
+    'NEON_STORAGE_ACCESS_KEY_ID',
+    'NEON_STORAGE_SECRET_ACCESS_KEY',
+  ];
+  const missing = required.filter((key) => !config[key]);
+
+  if (missing.length) {
+    throw new Error(
+      `MEDIA_DRIVER=neon requires: ${missing.join(', ')}.\n` +
+        'Create a bucket with `neon buckets create <name> --access-level public_read` and\n' +
+        'credentials with `neon credentials create --scope storage:read --scope storage:write`.',
+    );
+  }
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -39,5 +67,7 @@ export function validateEnv(config: Record<string, unknown>) {
       .join('\n  - ');
     throw new Error(`Invalid environment configuration:\n  - ${details}`);
   }
+
+  validateStorage(config);
   return config;
 }
