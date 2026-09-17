@@ -49,9 +49,11 @@ const migrate = parse('DIRECT_URL', directUrl);
 if (migrate?.pooled) {
   problems.push(
     `DIRECT_URL points at Neon's POOLED endpoint (${migrate.host}).\n` +
-      '     Prisma Migrate needs a direct session. Use the connection string\n' +
-      "     WITHOUT '-pooler' in the hostname — in the Neon console, open\n" +
-      "     Connect and switch the dropdown to 'Direct connection'.",
+      '     Prisma Migrate needs a direct session, which PgBouncer cannot give it.\n' +
+      '     Use the same string with the hostname NOT containing "-pooler":\n\n' +
+      `       ${migrate.host.replace('-pooler', '')}\n\n` +
+      '     In the Neon console that is Connect > "Connection pooling" toggle OFF\n' +
+      '     (it is on by default, which is why you only ever see the pooled string).',
   );
 }
 

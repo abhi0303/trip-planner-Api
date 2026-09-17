@@ -503,20 +503,27 @@ picked up `MEDIA_DRIVER=neon`:
 
 ### A deploy failed mid-migration
 
-Symptom, in the Render build log:
+Symptom, in the Render build log — one of two errors, which are the same
+problem at different stages:
 
 ```
-Applying migration `20260917155425_init`
 Error: P3018   Database error code: 42710
-ERROR: type "Visibility" already exists
+ERROR: type "Visibility" already exists          ← the attempt that failed
+```
+
+```
+Error: P3009
+migrate found failed migrations in the target database
+The `20260917155425_init` migration started at … failed   ← every attempt after
 ```
 
 **What happened.** Prisma does not wrap a migration in a transaction. A
 migration that fails partway leaves some objects created and the migration
 recorded in `_prisma_migrations` as started-but-unfinished
-(`applied_steps_count = 0`). `migrate deploy` then refuses to do anything until
-that record is cleared — so every later deploy fails on the same error, even
-after the original cause is fixed.
+(`applied_steps_count = 0`). The first failure reports **P3018** with the
+underlying SQL error; from then on the pre-flight check reports **P3009** and
+refuses to apply anything at all. Both need the same repair, and fixing the
+connection string alone does not clear it.
 
 **Why it usually happens here:** `DIRECT_URL` pointing at Neon's pooled
 endpoint. DDL through PgBouncer in transaction mode is unreliable, and this is
@@ -526,8 +533,11 @@ configuration, but a database already wedged has to be repaired by hand.
 **Fix it in two steps.**
 
 1. **Correct the variable.** In Render, `DIRECT_URL` must be the connection
-   string *without* `-pooler` in the hostname (Neon console → Connect → Direct
-   connection). `DATABASE_URL` keeps `-pooler`. Confirm locally:
+   string *without* `-pooler` in the hostname. In the Neon console that is
+   **Connect → "Connection pooling" toggle OFF** — it is on by default, which is
+   why the pooled string is usually the only one you see. `DATABASE_URL` keeps
+   `-pooler`. Everything else about the two strings is identical. Confirm
+   locally:
 
    ```bash
    DATABASE_URL=... DIRECT_URL=... npm run db:check
@@ -557,6 +567,21 @@ npx prisma migrate resolve --rolled-back <migration_name>
 That marks it rolled back without touching your rows — but any objects it
 already created still exist, so drop those specific objects first or the retry
 hits the same "already exists" error.
+
+### The preflight did not run in my build
+
+`render.yaml` only drives a service that Render created **from a Blueprint**. A
+service created through New → Web Service keeps its build command in the
+dashboard, and edits to `render.yaml` are ignored.
+
+Check **Settings → Build Command** on the service. It should read:
+
+```
+npm ci && node scripts/preflight-db.mjs && npx prisma generate && npx prisma migrate deploy && npm run build
+```
+
+If it doesn't, either paste that in, or re-sync the Blueprint so Render adopts
+the file.
 
 Two things worth knowing about the free tiers: Render free instances sleep after
 inactivity, so the first request after a pause is slow, and Neon Object Storage
