@@ -21,7 +21,9 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(apiPrefix, {
     // Health and uploads sit outside the versioned prefix so monitors and
     // <img> tags do not have to know the API version.
-    exclude: ['health', 'uploads/(.*)'],
+    // `{*path}` is the path-to-regexp v8 spelling Express 5 / Nest 11 require;
+    // the old `uploads/(.*)` still works but logs a deprecation warning.
+    exclude: ['health', 'uploads/{*path}'],
   });
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));

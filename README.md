@@ -81,6 +81,34 @@ NEON_STORAGE_SECRET_ACCESS_KEY=<s3_secret_access_key>
 
 **3. JWT secrets.** Generate each with `openssl rand -base64 48`.
 
+<details>
+<summary><strong>Already set the <code>AWS_*</code> variables from Neon's quickstart?</strong></summary>
+
+Neon's own docs export the standard AWS names, so those are accepted too —
+`NEON_STORAGE_*` simply wins where both are set:
+
+| This project | Also accepted | Neon credential field |
+|---|---|---|
+| `NEON_STORAGE_ENDPOINT` | `AWS_ENDPOINT_URL_S3` | — |
+| `NEON_STORAGE_REGION` | `AWS_REGION` | — |
+| `NEON_STORAGE_ACCESS_KEY_ID` | `AWS_ACCESS_KEY_ID` | `token_id` |
+| `NEON_STORAGE_SECRET_ACCESS_KEY` | `AWS_SECRET_ACCESS_KEY` | `s3_secret_access_key` |
+| `NEON_STORAGE_BUCKET` | *(no equivalent — always required)* | — |
+
+Set one spelling, not both. `NEON_STORAGE_BUCKET` is the one with no AWS
+counterpart: the S3 API takes the bucket per request, not from the
+environment, so a purely `AWS_*` setup is still missing it.
+
+**Variables this project does not read**, despite looking like it might:
+`AUTH_THROTTLE_LIMIT` and `AUTH_THROTTLE_TTL_SECONDS`. Rate limiting is
+`THROTTLE_LIMIT` / `THROTTLE_TTL` (global), and the tighter limit on
+`/auth/login` and `/auth/register` is set in code, not by environment.
+
+Deleting a variable from `render.yaml` does **not** remove it from a running
+service — [Render preserves environment variables it no longer sees in the
+blueprint](https://render.com/docs/infrastructure-as-code), so stale keys have
+to be removed in the dashboard by hand.
+
 The app refuses to boot if any of these are missing or wrong, and names what to
 fix — it will not start and fail later on a user's first upload.
 
