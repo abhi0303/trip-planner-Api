@@ -1,0 +1,899 @@
+// TripSphere — data model
+//
+// Architectural rule (spec §46 / "One architectural recommendation"):
+//   Trip is the central object, NOT Review.
+//   User -> Trip -> { Places, Days, Activities, Expenses, Stays, Photos, Ratings, Experience }
+//   Trip -> Post -> { Likes, Comments, Saves, Shares }
+//
+// Places are canonical entities, never free text (spec §10), so that
+// "show me everyone who visited Cola Beach" is a single indexed query.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+}
+
+/// Who may see a trip / post / field.
+/// FRIENDS is interpreted as "mutual follow" — see VisibilityService.
+enum Visibility {
+  PUBLIC
+  FOLLOWERS
+  FRIENDS
+  PRIVATE
+}
+
+enum TripStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ExpenseMode {
+  TOTAL
+  DETAILED
+}
+
+enum ExpenseCategory {
+  TRANSPORTATION
+  STAY
+  FOOD
+  ACTIVITIES
+  SHOPPING
+  OTHER
+}
+
+enum PlaceCategory {
+  BEACH
+  MOUNTAIN
+  CITY
+  TOWN
+  VILLAGE
+  LAKE
+  WATERFALL
+  FOREST
+  DESERT
+  ISLAND
+  TEMPLE
+  CHURCH
+  MOSQUE
+  MONUMENT
+  MUSEUM
+  FORT
+  PARK
+  WILDLIFE
+  VIEWPOINT
+  TREK
+  RESTAURANT
+  CAFE
+  BAR
+  HOTEL
+  AIRPORT
+  STATION
+  MARKET
+  ACTIVITY
+  OTHER
+}
+
+enum TravelStyle {
+  BEACH
+  ADVENTURE
+  COUPLE
+  FAMILY
+  BACKPACKING
+  RELAXATION
+  CULTURE
+  FOOD
+  NIGHTLIFE
+  PHOTOGRAPHY
+  ROAD_TRIP
+  BUDGET
+  LUXURY
+  SOLO
+  FRIENDS
+  WORKATION
+  PILGRIMAGE
+  WILDLIFE
+}
+
+enum RatingType {
+  TRIP
+  PLACE
+  HOTEL
+  RESTAURANT
+  ACTIVITY
+}
+
+/// Configurable rating dimensions (spec §14). Not every criterion applies to
+/// every rating type — the allowed matrix lives in RATING_CRITERIA_MATRIX.
+enum RatingCriteria {
+  OVERALL
+  SCENERY
+  CROWD
+  CLEANLINESS
+  ACCESSIBILITY
+  SAFETY
+  VALUE
+  PHOTOGRAPHY
+  FOOD
+  ACTIVITIES
+  FAMILY_FRIENDLY
+  COUPLE_FRIENDLY
+  SOLO_FRIENDLY
+  SERVICE
+  LOCATION
+  COMFORT
+}
+
+enum Weather {
+  SUNNY
+  CLOUDY
+  RAINY
+  SNOWY
+  WINDY
+  FOGGY
+  MIXED
+}
+
+enum CrowdLevel {
+  VERY_LOW
+  LOW
+  MODERATE
+  HIGH
+  VERY_HIGH
+}
+
+enum Season {
+  WINTER
+  SPRING
+  SUMMER
+  MONSOON
+  AUTUMN
+}
+
+enum RealityCheckSeverity {
+  INFO
+  WARNING
+  DANGER
+}
+
+enum VerificationLevel {
+  UNVERIFIED
+  PHOTO_EVIDENCE
+  BOOKING_EVIDENCE
+  LOCATION_EVIDENCE
+  MANUALLY_VERIFIED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  SAVE
+  MENTION
+  TRIP_TRENDING
+  NEW_PLACE_EXPERIENCE
+  SYSTEM
+}
+
+enum ReportTargetType {
+  USER
+  TRIP
+  POST
+  COMMENT
+  PLACE
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  ACTIONED
+  DISMISSED
+}
+
+enum ReportReason {
+  SPAM
+  OFFENSIVE
+  MISLEADING
+  FAKE_EXPERIENCE
+  HARASSMENT
+  NUDITY
+  COPYRIGHT
+  OTHER
+}
+
+enum ActivityKind {
+  TRAVEL
+  CHECK_IN
+  CHECK_OUT
+  SIGHTSEEING
+  FOOD
+  ACTIVITY
+  REST
+  SHOPPING
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Users & social graph
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique
+  username     String       @unique
+  name         String
+  passwordHash String?
+  provider     AuthProvider @default(EMAIL)
+  googleId     String?      @unique
+  appleId      String?      @unique
+
+  profileImage String?
+  coverImage   String?
+  bio          String?
+  homeCountry  String?
+  homeCity     String?
+  websiteUrl   String?
+  currency     String  @default("INR")
+
+  role          UserRole   @default(USER)
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false)
+
+  // Denormalised social counters — kept in sync inside transactions so the
+  // feed and profile never need COUNT(*) over millions of rows.
+  followerCount  Int @default(0)
+  followingCount Int @default(0)
+  tripCount      Int @default(0)
+  postCount      Int @default(0)
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  trips         Trip[]
+  posts         Post[]
+  media         Media[]
+  comments      Comment[]
+  likes         Like[]
+  saves         Save[]
+  collections   Collection[]
+  refreshTokens RefreshToken[]
+
+  following Follow[] @relation("follower")
+  followers Follow[] @relation("following")
+
+  blocksMade     Block[] @relation("blocker")
+  blocksReceived Block[] @relation("blocked")
+
+  reportsMade      Report[]       @relation("reporter")
+  reportsResolved  Report[]       @relation("resolver")
+  notifications    Notification[] @relation("recipient")
+  notificationsFor Notification[] @relation("actor")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the token; the raw token is only ever held by the client.
+  tokenHash String    @unique
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+  @@map("refresh_tokens")
+}
+
+model Follow {
+  followerId  String   @db.Uuid
+  followingId String   @db.Uuid
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+  @@index([followingId, createdAt])
+  @@index([followerId, createdAt])
+  @@map("follows")
+}
+
+model Block {
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+// ---------------------------------------------------------------------------
+// Places (canonical geography)
+// ---------------------------------------------------------------------------
+
+model Place {
+  id   String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  name String
+
+  countryCode String  @db.Char(2)
+  country     String
+  state       String?
+  region      String?
+  city        String?
+
+  latitude  Float?
+  longitude Float?
+
+  category    PlaceCategory @default(OTHER)
+  description String?
+  coverImage  String?
+
+  /// Free-form extras (opening hours, entry fee, tips) without a migration.
+  metadata       Json?
+  /// Provider id (e.g. Google Places) when the place was imported.
+  externalSource String?
+  externalId     String?
+
+  /// Parent destination, e.g. Cola Beach -> South Goa -> Goa -> India.
+  parentId String? @db.Uuid
+  parent   Place?  @relation("placeHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Place[] @relation("placeHierarchy")
+
+  isDestination Boolean @default(false)
+  isVerified    Boolean @default(false)
+
+  // Cached aggregates (spec §24) refreshed by PlaceAggregateService.
+  experienceCount   Int       @default(0)
+  travelerCount     Int       @default(0)
+  avgRating         Float?
+  avgVisitMinutes   Int?
+  avgSpendPerPerson Decimal?  @db.Decimal(12, 2)
+  aggregatesAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tripPlaces    TripPlace[]
+  stays         TripStay[]
+  photos        TripPhoto[]
+  ratings       TripRating[]
+  activities    TripActivity[]
+  posts         Post[]
+  realityChecks RealityCheck[]
+  trips         Trip[]         @relation("tripDestination")
+
+  @@index([countryCode, state])
+  @@index([category])
+  @@index([parentId])
+  @@index([name])
+  @@index([experienceCount])
+  @@map("places")
+}
+
+// ---------------------------------------------------------------------------
+// Trips — the central object
+// ---------------------------------------------------------------------------
+
+model Trip {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title String
+  slug  String @unique
+
+  // Destination: denormalised strings for display + canonical FK for queries.
+  countryCode      String  @db.Char(2)
+  country          String
+  state            String?
+  destination      String
+  destinationId    String? @db.Uuid
+  destinationPlace Place?  @relation("tripDestination", fields: [destinationId], references: [id], onDelete: SetNull)
+
+  startDate  DateTime @db.Date
+  endDate    DateTime @db.Date
+  /// Derived: nights = endDate - startDate, days = nights + 1 (see calculateDuration).
+  nights     Int
+  days       Int
+  /// Denormalised from startDate so seasonal queries ("August experiences",
+  /// spec §30) are a plain indexed lookup rather than a date-part scan.
+  startMonth Int
+  startYear  Int
+
+  travelerCount Int @default(1)
+  adults        Int @default(1)
+  children      Int @default(0)
+  infants       Int @default(0)
+
+  expenseMode  ExpenseMode @default(TOTAL)
+  totalExpense Decimal?    @db.Decimal(14, 2)
+  currency     String      @default("INR")
+
+  // Structured experience (spec §13) — prompts, not one blob of text.
+  experience         String?
+  enjoyedMost        String?
+  surprisedBy        String?
+  wentWrong          String?
+  wouldDoDifferently String?
+  adviceForTravelers String?
+
+  travelStyles TravelStyle[]
+  weather      Weather?
+  crowdLevel   CrowdLevel?
+  season       Season?
+
+  visibility        Visibility @default(PUBLIC)
+  /// Expenses can be hidden while the trip itself stays public (spec §33).
+  expenseVisibility Visibility @default(PUBLIC)
+
+  status            TripStatus        @default(DRAFT)
+  verificationLevel VerificationLevel @default(UNVERIFIED)
+
+  coverMediaId String? @db.Uuid
+  coverMedia   Media?  @relation("tripCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+
+  viewCount  Int @default(0)
+  saveCount  Int @default(0)
+  placeCount Int @default(0)
+  photoCount Int @default(0)
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  places        TripPlace[]
+  expenses      TripExpense[]
+  stays         TripStay[]
+  photos        TripPhoto[]
+  ratings       TripRating[]
+  realityChecks RealityCheck[]
+  days_         TripDay[]
+  posts         Post[]
+  saves         Save[]
+
+  @@index([userId, status, startDate])
+  @@index([countryCode, state, status])
+  @@index([destinationId, status])
+  @@index([status, publishedAt])
+  @@index([totalExpense])
+  @@index([startDate])
+  @@index([startMonth, status])
+  @@map("trips")
+}
+
+model TripPlace {
+  id      String @id @default(uuid()) @db.Uuid
+  tripId  String @db.Uuid
+  trip    Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  placeId String @db.Uuid
+  place   Place  @relation(fields: [placeId], references: [id], onDelete: Restrict)
+
+  visitDate       DateTime? @db.Date
+  /// Position in the trip route (spec §11).
+  sequence        Int       @default(0)
+  durationMinutes Int?
+  notes           String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([tripId, placeId])
+  @@index([placeId])
+  @@index([tripId, sequence])
+  @@map("trip_places")
+}
+
+model TripExpense {
+  id     String @id @default(uuid()) @db.Uuid
+  tripId String @db.Uuid
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  category    ExpenseCategory
+  /// Free-form subcategory constrained by EXPENSE_SUBCATEGORIES (spec §8).
+  subcategory String?
+  amount      Decimal         @db.Decimal(14, 2)
+  currency    String          @default("INR")
+  expenseDate DateTime?       @db.Date
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId, category])
+  @@map("trip_expenses")
+}
+
+model TripStay {
+  id     String @id @default(uuid()) @db.Uuid
+  tripId String @db.Uuid
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  hotelName String
+  placeId   String? @db.Uuid
+  place     Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  location  String?
+
+  checkIn  DateTime? @db.Date
+  checkOut DateTime? @db.Date
+  nights   Int?
+
+  amount   Decimal? @db.Decimal(14, 2)
+  currency String   @default("INR")
+
+  roomType        String?
+  rating          Float?
+  bookingPlatform String?
+  websiteUrl      String?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId])
+  @@index([placeId])
+  @@map("trip_stays")
+}
+
+model Media {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type         MediaType @default(IMAGE)
+  url          String
+  thumbnailUrl String?
+  storageKey   String?
+  mimeType     String?
+  sizeBytes    Int?
+  width        Int?
+  height       Int?
+  blurhash     String?
+  /// EXIF-derived, used later for photo-based trip extraction (spec §28.5).
+  capturedAt   DateTime?
+  latitude     Float?
+  longitude    Float?
+
+  createdAt DateTime @default(now())
+
+  tripPhotos TripPhoto[]
+  postMedia  PostMedia[]
+  tripCovers Trip[]      @relation("tripCover")
+
+  @@index([userId, createdAt])
+  @@map("media")
+}
+
+model TripPhoto {
+  id      String @id @default(uuid()) @db.Uuid
+  tripId  String @db.Uuid
+  trip    Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  mediaId String @db.Uuid
+  media   Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  /// Photo -> Trip -> Place -> Date (spec §17) makes photo search possible.
+  placeId  String?   @db.Uuid
+  place    Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  caption  String?
+  takenAt  DateTime?
+  sequence Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([tripId, mediaId])
+  @@index([placeId])
+  @@index([tripId, sequence])
+  @@map("trip_photos")
+}
+
+model TripRating {
+  id     String @id @default(uuid()) @db.Uuid
+  tripId String @db.Uuid
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  ratingType RatingType
+  /// Target of the rating: a place, a stay, or the trip itself (null target).
+  placeId    String?    @db.Uuid
+  place      Place?     @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  stayId     String?    @db.Uuid
+
+  criteria RatingCriteria
+  score    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Deliberately an index, not a unique constraint: placeId/stayId are
+  // nullable and Postgres treats NULLs as distinct, so a UNIQUE here would not
+  // stop duplicate trip-level ratings. Uniqueness is enforced in
+  // TripSectionsService.submitRatings, which replaces a rating group in one
+  // transaction.
+  @@index([tripId, ratingType, placeId, stayId])
+  @@index([placeId, criteria])
+  @@map("trip_ratings")
+}
+
+/// Signature feature (spec §16): practical warnings, not negative reviews.
+model RealityCheck {
+  id      String  @id @default(uuid()) @db.Uuid
+  tripId  String  @db.Uuid
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  placeId String? @db.Uuid
+  place   Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  severity RealityCheckSeverity @default(WARNING)
+  text     String
+
+  createdAt DateTime @default(now())
+
+  @@index([tripId])
+  @@index([placeId])
+  @@map("reality_checks")
+}
+
+// --- Itinerary (spec §27) -----------------------------------------------
+
+model TripDay {
+  id     String @id @default(uuid()) @db.Uuid
+  tripId String @db.Uuid
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  dayNumber Int
+  date      DateTime? @db.Date
+  title     String?
+  summary   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities TripActivity[]
+
+  @@unique([tripId, dayNumber])
+  @@map("trip_days")
+}
+
+model TripActivity {
+  id    String  @id @default(uuid()) @db.Uuid
+  dayId String  @db.Uuid
+  day   TripDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  kind      ActivityKind @default(OTHER)
+  title     String
+  placeId   String?      @db.Uuid
+  place     Place?       @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  startTime String?
+  endTime   String?
+  notes     String?
+  /// Drag-and-drop ordering within the day.
+  sequence  Int          @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dayId, sequence])
+  @@map("trip_activities")
+}
+
+// ---------------------------------------------------------------------------
+// Social layer
+// ---------------------------------------------------------------------------
+
+model Post {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// A post is something shared *from* a trip (spec §5) — optional so a
+  /// standalone post is still possible.
+  tripId  String? @db.Uuid
+  trip    Trip?   @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  /// Optionally scoped to one place, e.g. "My experience at Cola Beach".
+  placeId String? @db.Uuid
+  place   Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  caption    String?
+  visibility Visibility @default(PUBLIC)
+
+  likeCount    Int @default(0)
+  commentCount Int @default(0)
+  saveCount    Int @default(0)
+  shareCount   Int @default(0)
+  viewCount    Int @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  media    PostMedia[]
+  likes    Like[]
+  comments Comment[]
+  saves    Save[]
+
+  @@index([userId, createdAt])
+  @@index([visibility, createdAt])
+  @@index([tripId])
+  @@index([placeId, createdAt])
+  @@map("posts")
+}
+
+model PostMedia {
+  id       String @id @default(uuid()) @db.Uuid
+  postId   String @db.Uuid
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaId  String @db.Uuid
+  media    Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  sequence Int    @default(0)
+
+  @@unique([postId, mediaId])
+  @@index([postId, sequence])
+  @@map("post_media")
+}
+
+model Like {
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([postId, userId])
+  @@index([userId, createdAt])
+  @@map("likes")
+}
+
+model Comment {
+  id     String @id @default(uuid()) @db.Uuid
+  postId String @db.Uuid
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One level of threading: replies point at a top-level comment.
+  parentId String?   @db.Uuid
+  parent   Comment?  @relation("commentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("commentThread")
+
+  body       String
+  likeCount  Int    @default(0)
+  replyCount Int    @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([postId, createdAt])
+  @@index([parentId, createdAt])
+  @@map("comments")
+}
+
+model Collection {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  emoji     String?
+  isPrivate Boolean @default(false)
+  itemCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saves Save[]
+
+  @@unique([userId, name])
+  @@map("collections")
+}
+
+/// A bookmark on a trip or a post, optionally filed into a collection.
+model Save {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tripId String? @db.Uuid
+  trip   Trip?   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  postId String? @db.Uuid
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  collectionId String?     @db.Uuid
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tripId])
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+  @@index([collectionId, createdAt])
+  @@map("saves")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications, moderation
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id          String  @id @default(uuid()) @db.Uuid
+  recipientId String  @db.Uuid
+  recipient   User    @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String? @db.Uuid
+  actor       User?   @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  type       NotificationType
+  /// Polymorphic pointer to the subject (post id, trip id, user id, ...).
+  entityType String?
+  entityId   String?
+  message    String?
+  data       Json?
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([recipientId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model Report {
+  id         String           @id @default(uuid()) @db.Uuid
+  reporterId String           @db.Uuid
+  reporter   User             @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType ReportTargetType
+  targetId   String
+  reason     ReportReason
+  details    String?
+
+  status         ReportStatus @default(PENDING)
+  resolvedById   String?      @db.Uuid
+  resolvedBy     User?        @relation("resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolutionNote String?
+  resolvedAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+  @@map("reports")
+}

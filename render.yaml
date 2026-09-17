@@ -1,0 +1,59 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploy: push this repo, then New > Blueprint in the Render dashboard.
+# GOOGLE_CLIENT_ID is optional; /auth/google returns 501 until it is set.
+#
+# Note: the free plan has no persistent disk, so uploaded images are lost on
+# every deploy. Set MEDIA_DRIVER to an object store before real traffic.
+services:
+  - type: web
+    name: tripsphere-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: api/v1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tripsphere-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MEDIA_DRIVER
+        value: local
+      - key: MEDIA_BASE_URL
+        sync: false
+      - key: SWAGGER_ENABLED
+        value: 'true'
+      - key: SWAGGER_PATH
+        value: docs
+      - key: MIN_SAMPLE_SIZE
+        value: '3'
+      - key: THROTTLE_TTL
+        value: '60'
+      - key: THROTTLE_LIMIT
+        value: '120'
+
+databases:
+  - name: tripsphere-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: '16'
