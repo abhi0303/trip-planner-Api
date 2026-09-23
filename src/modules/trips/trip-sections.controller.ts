@@ -251,8 +251,29 @@ export class TripSectionsController {
   }
 
   @ApiBearerAuth()
+  @Put('photos/:photoId/cover')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mark a photo as the trip cover',
+    description:
+      'The photo must already be on this trip. Returns the full photo list with the new isCover flags, so the client can re-render from one response.',
+  })
+  @ApiEnvelope(TripPhotoDto, { isArray: true })
+  @ApiErrorResponses(401, 403, 404)
+  setCoverPhoto(
+    @Param('tripId', ParseUUIDPipe) tripId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.sections.setCoverPhoto(tripId, photoId, user.id);
+  }
+
   @Delete('photos/:photoId')
-  @ApiOperation({ summary: 'Remove a photo from the trip' })
+  @ApiOperation({
+    summary: 'Remove a photo from the trip',
+    description:
+      'Also deletes the stored image when nothing else uses it. If the removed photo was the cover, the next photo becomes the cover.',
+  })
   @ApiEnvelope(MessageDto)
   @ApiErrorResponses(401, 403, 404)
   removePhoto(

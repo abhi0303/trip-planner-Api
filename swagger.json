@@ -4180,8 +4180,108 @@
         ]
       }
     },
+    "/trips/{tripId}/photos/{photoId}/cover": {
+      "put": {
+        "description": "The photo must already be on this trip. Returns the full photo list with the new isCover flags, so the client can re-render from one response.",
+        "operationId": "TripSections_setCoverPhoto",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "photoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TripPhotoDto"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated but not allowed to perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource does not exist or is not visible to you",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark a photo as the trip cover",
+        "tags": [
+          "Trip content"
+        ]
+      }
+    },
     "/trips/{tripId}/photos/{photoId}": {
       "delete": {
+        "description": "Also deletes the stored image when nothing else uses it. If the removed photo was the cover, the next photo becomes the cover.",
         "operationId": "TripSections_removePhoto",
         "parameters": [
           {
@@ -4261,11 +4361,6 @@
             }
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Remove a photo from the trip",
         "tags": [
           "Trip content"
@@ -9487,12 +9582,18 @@
           },
           "sequence": {
             "type": "number"
+          },
+          "isCover": {
+            "type": "boolean",
+            "description": "True for the one photo used as the trip cover. Exactly one photo has this set while the trip has any photos.",
+            "example": false
           }
         },
         "required": [
           "id",
           "media",
-          "sequence"
+          "sequence",
+          "isCover"
         ]
       },
       "RatingGroupDto": {
@@ -10683,6 +10784,11 @@
           },
           "sequence": {
             "type": "number"
+          },
+          "isCover": {
+            "type": "boolean",
+            "description": "Mark this photo as the trip cover. If several in one request set it, the last one wins.",
+            "default": false
           }
         },
         "required": [

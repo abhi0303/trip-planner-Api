@@ -6,8 +6,19 @@ import {
 } from '@nestjs/common';
 import { ExpenseMode, Prisma, TripStatus, Visibility } from '@prisma/client';
 import { VisibilityService } from 'src/common/services/visibility.service';
-import { buildPage, calculateDuration, decodeCursor, deriveSeason, round2, toNumber, uniqueSlug } from 'src/common/utils';
-import { PLACE_SUMMARY_SELECT, PlaceAggregatesService } from 'src/modules/places/place-aggregates.service';
+import {
+  buildPage,
+  calculateDuration,
+  decodeCursor,
+  deriveSeason,
+  round2,
+  toNumber,
+  uniqueSlug,
+} from 'src/common/utils';
+import {
+  PLACE_SUMMARY_SELECT,
+  PlaceAggregatesService,
+} from 'src/modules/places/place-aggregates.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { TripCardDto, TripDetailDto } from './dto/trip-response.dto';
@@ -29,6 +40,7 @@ export class TripsService {
   // -------------------------------------------------------------------------
 
   async create(userId: string, dto: CreateTripDto): Promise<TripDetailDto> {
+    await this.assertOwnsMedia(userId, dto.coverMediaId);
     const { startDate, endDate } = this.parseDates(dto.startDate, dto.endDate);
     const { nights, days } = calculateDuration(startDate, endDate);
 
@@ -82,9 +94,12 @@ export class TripsService {
 
   async update(tripId: string, userId: string, dto: UpdateTripDto): Promise<TripDetailDto> {
     const existing = await this.assertOwner(tripId, userId);
+    await this.assertOwnsMedia(userId, dto.coverMediaId);
 
     // Dates can be edited one at a time, so re-derive from the merged pair.
-    const startDate = dto.startDate ? this.parseDate(dto.startDate, 'startDate') : existing.startDate;
+    const startDate = dto.startDate
+      ? this.parseDate(dto.startDate, 'startDate')
+      : existing.startDate;
     const endDate = dto.endDate ? this.parseDate(dto.endDate, 'endDate') : existing.endDate;
     if (endDate < startDate) {
       throw new BadRequestException('endDate must be on or after startDate');
@@ -101,7 +116,9 @@ export class TripsService {
 
     const travelers =
       dto.adults !== undefined || dto.children !== undefined || dto.infants !== undefined
-        ? (dto.adults ?? existing.adults) + (dto.children ?? existing.children) + (dto.infants ?? existing.infants)
+        ? (dto.adults ?? existing.adults) +
+          (dto.children ?? existing.children) +
+          (dto.infants ?? existing.infants)
         : existing.travelerCount;
 
     await this.prisma.trip.update({
@@ -301,7 +318,12 @@ export class TripsService {
       ...(query.travelerCount ? { travelerCount: query.travelerCount } : {}),
       ...(query.travelStyles?.length ? { travelStyles: { hasSome: query.travelStyles } } : {}),
       ...(query.minDays || query.maxDays
-        ? { days: { ...(query.minDays ? { gte: query.minDays } : {}), ...(query.maxDays ? { lte: query.maxDays } : {}) } }
+        ? {
+            days: {
+              ...(query.minDays ? { gte: query.minDays } : {}),
+              ...(query.maxDays ? { lte: query.maxDays } : {}),
+            },
+          }
         : {}),
       // Budget filters only match trips that made their spending public —
       // otherwise a hidden number would still be searchable.
@@ -366,6 +388,22 @@ export class TripsService {
   // Helpers shared with the section services
   // -------------------------------------------------------------------------
 
+  /**
+   * The cover is set by media id, so without this anyone could point their
+   * trip cover at someone else's upload.
+   */
+  private async assertOwnsMedia(userId: string, mediaId?: string | null): Promise<void> {
+    if (!mediaId) return;
+
+    const media = await this.prisma.media.findFirst({
+      where: { id: mediaId, userId },
+      select: { id: true },
+    });
+    if (!media) {
+      throw new BadRequestException('coverMediaId must be an image you uploaded');
+    }
+  }
+
   /** Throws 404 for non-existent and 403 for someone else's trip. */
   async assertOwner(tripId: string, userId: string) {
     const trip = await this.prisma.trip.findFirst({
@@ -411,16 +449,17 @@ export class TripsService {
 
     // One relationship lookup for the whole page rather than per row.
     const authorIds = [...new Set(rows.map((r) => r.user.id))].filter((id) => id !== viewerId);
-    const followed = viewerId && authorIds.length
-      ? new Set(
-          (
-            await this.prisma.follow.findMany({
-              where: { followerId: viewerId, followingId: { in: authorIds } },
-              select: { followingId: true },
-            })
-          ).map((f) => f.followingId),
-        )
-      : new Set<string>();
+    const followed =
+      viewerId && authorIds.length
+        ? new Set(
+            (
+              await this.prisma.follow.findMany({
+                where: { followerId: viewerId, followingId: { in: authorIds } },
+                select: { followingId: true },
+              })
+            ).map((f) => f.followingId),
+          )
+        : new Set<string>();
 
     const mutuals = viewerId
       ? new Set(
@@ -584,6 +623,9 @@ export class TripsService {
         caption: p.caption,
         takenAt: p.takenAt,
         sequence: p.sequence,
+        // Derived rather than stored: trips.coverMediaId stays the single
+        // source of truth, so there is no way for two photos to claim it.
+        isCover: !!trip.coverMediaId && p.mediaId === trip.coverMediaId,
       })),
       ratings: this.groupRatings(trip.ratings),
       realityChecks: trip.realityChecks,
@@ -714,7 +756,9 @@ export const TRIP_CARD_SELECT = {
   publishedAt: true,
   createdAt: true,
   user: { select: { id: true, username: true, name: true, profileImage: true } },
-  coverMedia: { select: { id: true, url: true, thumbnailUrl: true, blurhash: true, width: true, height: true } },
+  coverMedia: {
+    select: { id: true, url: true, thumbnailUrl: true, blurhash: true, width: true, height: true },
+  },
 } satisfies Prisma.TripSelect;
 
 const MEDIA_SELECT = {

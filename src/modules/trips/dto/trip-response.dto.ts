@@ -166,6 +166,13 @@ export class TripPhotoDto {
 
   @ApiProperty()
   sequence: number;
+
+  @ApiProperty({
+    description:
+      'True for the one photo used as the trip cover. Exactly one photo has this set while the trip has any photos.',
+    example: false,
+  })
+  isCover: boolean;
 }
 
 export class RatingGroupDto {

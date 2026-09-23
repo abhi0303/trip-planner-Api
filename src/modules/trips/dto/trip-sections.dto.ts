@@ -10,6 +10,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -281,6 +282,15 @@ export class AddTripPhotoDto {
   @IsInt()
   @Min(0)
   sequence?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Mark this photo as the trip cover. If several in one request set it, the last one wins.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isCover?: boolean;
 }
 
 export class AddTripPhotosDto {

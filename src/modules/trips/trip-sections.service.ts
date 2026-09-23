@@ -205,7 +205,9 @@ export class TripSectionsService {
     const ownedIds = new Set(owned.map((m) => m.id));
     const foreign = mediaIds.filter((id) => !ownedIds.has(id));
     if (foreign.length) {
-      throw new BadRequestException(`These media ids are not yours or do not exist: ${foreign.join(', ')}`);
+      throw new BadRequestException(
+        `These media ids are not yours or do not exist: ${foreign.join(', ')}`,
+      );
     }
 
     const base = await this.nextPhotoSequence(tripId);
@@ -223,7 +225,17 @@ export class TripSectionsService {
     });
 
     await this.trips.refreshCounters(tripId);
-    await this.setCoverIfMissing(tripId, mediaIds[0]);
+
+    // An explicit mark wins; otherwise the first photo seeds an empty cover.
+    const explicitCover = [...dto.photos].reverse().find((p) => p.isCover);
+    if (explicitCover) {
+      await this.prisma.trip.update({
+        where: { id: tripId },
+        data: { coverMediaId: explicitCover.mediaId },
+      });
+    } else {
+      await this.setCoverIfMissing(tripId, mediaIds[0]);
+    }
 
     return this.prisma.tripPhoto.findMany({
       where: { tripId },
@@ -285,6 +297,35 @@ export class TripSectionsService {
     await this.prisma.trip.update({
       where: { id: tripId },
       data: { coverMediaId: next?.mediaId ?? null },
+    });
+  }
+
+  /**
+   * Promotes one of the trip's photos to cover. Takes the photo id rather than
+   * a media id so the client can use what it already has on screen, and so a
+   * photo that is not on this trip cannot become its cover.
+   */
+  async setCoverPhoto(tripId: string, photoId: string, userId: string) {
+    await this.trips.assertOwner(tripId, userId);
+
+    const photo = await this.prisma.tripPhoto.findFirst({
+      where: { id: photoId, tripId },
+      select: { mediaId: true },
+    });
+    if (!photo) throw new NotFoundException('Photo is not on this trip');
+
+    await this.prisma.trip.update({
+      where: { id: tripId },
+      data: { coverMediaId: photo.mediaId },
+    });
+
+    return this.prisma.tripPhoto.findMany({
+      where: { tripId },
+      orderBy: { sequence: 'asc' },
+      include: {
+        media: { select: { id: true, url: true, thumbnailUrl: true, blurhash: true } },
+        place: { select: PLACE_SUMMARY_SELECT },
+      },
     });
   }
 
