@@ -139,8 +139,48 @@ export class UsersService {
       if (taken) throw new BadRequestException('Username is already taken');
     }
 
+    const current = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { profileImage: true, coverImage: true },
+    });
+
+    await Promise.all([
+      this.assertOwnMedia(userId, 'profileImage', dto.profileImage, current.profileImage),
+      this.assertOwnMedia(userId, 'coverImage', dto.coverImage, current.coverImage),
+    ]);
+
     await this.prisma.user.update({ where: { id: userId }, data: dto });
     return this.getProfile(userId, userId);
+  }
+
+  /**
+   * Avatar and cover must point at media the user uploaded here.
+   *
+   * A free-text URL would let anyone host their avatar on a server they
+   * control and read the IP of everyone who loads their profile, which is a
+   * tracking pixel with extra steps. Unchanged values pass untouched so a
+   * client that PATCHes a whole profile form is not punished for it — that
+   * also preserves avatars set from a Google account at sign-in.
+   */
+  private async assertOwnMedia(
+    userId: string,
+    field: 'profileImage' | 'coverImage',
+    value: string | null | undefined,
+    currentValue: string | null,
+  ): Promise<void> {
+    if (value === undefined || value === null) return;
+    if (value === currentValue) return;
+
+    const media = await this.prisma.media.findFirst({
+      where: { url: value, userId },
+      select: { id: true },
+    });
+
+    if (!media) {
+      throw new BadRequestException(
+        `${field} must be the url of an image you uploaded. Upload it with POST /media/upload and send back the url from that response.`,
+      );
+    }
   }
 
   async deactivate(userId: string): Promise<{ message: string }> {

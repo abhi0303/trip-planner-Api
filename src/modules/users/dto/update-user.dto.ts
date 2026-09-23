@@ -1,7 +1,28 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, IsUrl, Length, Matches, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Length,
+  Matches,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 import { SUPPORTED_CURRENCIES } from 'src/common/constants';
+
+/**
+ * require_tld is off because media URLs are host-shaped, not domain-shaped:
+ * local development serves them from `localhost:9000`, which validator.js
+ * rejects by default. The protocol allow-list is what actually matters here —
+ * it is what keeps `javascript:` out of an <img src>.
+ */
+const IMAGE_URL_RULES = {
+  require_protocol: true,
+  require_tld: false,
+  protocols: ['http', 'https'],
+};
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'Sreyanse Pradhan' })
@@ -26,15 +47,26 @@ export class UpdateUserDto {
   @MaxLength(300)
   bio?: string;
 
-  @ApiPropertyOptional({ description: 'Media URL returned by POST /media' })
+  @ApiPropertyOptional({
+    description:
+      'Avatar. Must be the `url` of a media item you uploaded via POST /media/upload. Send null to remove it.',
+    nullable: true,
+    example: 'https://br-xxxx.storage.c-2.us-east-2.aws.neon.tech/tripsphere-media/…/a.jpg',
+  })
   @IsOptional()
-  @IsString()
-  profileImage?: string;
+  @ValidateIf((_o: unknown, value: unknown) => value !== null)
+  @IsUrl(IMAGE_URL_RULES)
+  profileImage?: string | null;
 
-  @ApiPropertyOptional({ description: 'Media URL returned by POST /media' })
+  @ApiPropertyOptional({
+    description:
+      'Profile cover image. Must be the `url` of a media item you uploaded via POST /media/upload. Send null to remove it.',
+    nullable: true,
+  })
   @IsOptional()
-  @IsString()
-  coverImage?: string;
+  @ValidateIf((_o: unknown, value: unknown) => value !== null)
+  @IsUrl(IMAGE_URL_RULES)
+  coverImage?: string | null;
 
   @ApiPropertyOptional({ example: 'IN', description: 'ISO 3166-1 alpha-2' })
   @IsOptional()
