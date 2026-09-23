@@ -48,6 +48,7 @@ export class UpdateUserDto {
   bio?: string;
 
   @ApiPropertyOptional({
+    type: String,
     description:
       'Avatar. Must be the `url` of a media item you uploaded via POST /media/upload. Send null to remove it.',
     nullable: true,
@@ -59,6 +60,7 @@ export class UpdateUserDto {
   profileImage?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     description:
       'Profile cover image. Must be the `url` of a media item you uploaded via POST /media/upload. Send null to remove it.',
     nullable: true,

@@ -8438,13 +8438,13 @@
             "example": "Beach person. 3 countries so far."
           },
           "profileImage": {
-            "type": "object",
+            "type": "string",
             "description": "Avatar. Must be the `url` of a media item you uploaded via POST /media/upload. Send null to remove it.",
             "nullable": true,
             "example": "https://br-xxxx.storage.c-2.us-east-2.aws.neon.tech/tripsphere-media/…/a.jpg"
           },
           "coverImage": {
-            "type": "object",
+            "type": "string",
             "description": "Profile cover image. Must be the `url` of a media item you uploaded via POST /media/upload. Send null to remove it.",
             "nullable": true
           },
