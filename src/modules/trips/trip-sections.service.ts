@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, RatingType } from '@prisma/client';
 import { RATING_CRITERIA_MATRIX, isCriteriaAllowed } from 'src/common/constants';
 import { nightsBetween } from 'src/common/utils';
 import { PLACE_SUMMARY_SELECT } from 'src/modules/places/place-aggregates.service';
+import { MediaService } from 'src/modules/media/media.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   AddTripPhotosDto,
@@ -23,9 +24,12 @@ import { TripsService } from './trips.service';
  */
 @Injectable()
 export class TripSectionsService {
+  private readonly logger = new Logger(TripSectionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly trips: TripsService,
+    private readonly media: MediaService,
   ) {}
 
   // --- Places --------------------------------------------------------------
@@ -233,10 +237,55 @@ export class TripSectionsService {
 
   async removePhoto(tripId: string, photoId: string, userId: string) {
     await this.trips.assertOwner(tripId, userId);
-    const deleted = await this.prisma.tripPhoto.deleteMany({ where: { id: photoId, tripId } });
-    if (deleted.count === 0) throw new NotFoundException('Photo not found');
+
+    const photo = await this.prisma.tripPhoto.findFirst({
+      where: { id: photoId, tripId },
+      select: { id: true, mediaId: true, media: { select: { url: true } } },
+    });
+    if (!photo) throw new NotFoundException('Photo not found');
+
+    await this.prisma.tripPhoto.delete({ where: { id: photo.id } });
+
+    // The cover points at a media id, not at the photo row, so removing the
+    // photo would otherwise leave the trip showing a cover it no longer has.
+    // Promote the next remaining photo, or clear it.
+    await this.reassignCoverIfRemoved(tripId, photo.mediaId);
+
     await this.trips.refreshCounters(tripId);
+
+    // Only collects the upload when nothing else points at it — the same image
+    // can also be an avatar, a post image or another trip's photo.
+    await this.media
+      .deleteIfUnreferenced(userId, photo.media.url)
+      .catch((error) =>
+        this.logger.warn(
+          `Could not remove media for trip photo ${photoId}: ${
+            error instanceof Error ? error.message : error
+          }`,
+        ),
+      );
+
     return { message: 'Photo removed' };
+  }
+
+  /** Keeps trips.coverMediaId pointing at a photo the trip actually still has. */
+  private async reassignCoverIfRemoved(tripId: string, removedMediaId: string): Promise<void> {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { coverMediaId: true },
+    });
+    if (trip?.coverMediaId !== removedMediaId) return;
+
+    const next = await this.prisma.tripPhoto.findFirst({
+      where: { tripId },
+      orderBy: { sequence: 'asc' },
+      select: { mediaId: true },
+    });
+
+    await this.prisma.trip.update({
+      where: { id: tripId },
+      data: { coverMediaId: next?.mediaId ?? null },
+    });
   }
 
   // --- Ratings -------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MediaModule } from 'src/modules/media/media.module';
 import { PlacesModule } from 'src/modules/places/places.module';
 import { ExpensesService } from './expenses.service';
 import { ItineraryController } from './itinerary.controller';
@@ -9,7 +10,7 @@ import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 
 @Module({
-  imports: [PlacesModule],
+  imports: [PlacesModule, MediaModule],
   controllers: [TripsController, TripSectionsController, ItineraryController],
   providers: [TripsService, ExpensesService, TripSectionsService, ItineraryService],
   exports: [TripsService, ExpensesService],
