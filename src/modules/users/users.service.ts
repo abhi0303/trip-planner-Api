@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, TripStatus, UserStatus } from '@prisma/client';
+import { MediaService } from 'src/modules/media/media.service';
 import { VisibilityService } from 'src/common/services/visibility.service';
 import { CursorPaginationDto } from 'src/common/dto/pagination.dto';
 import { Page, buildPage, decodeCursor } from 'src/common/utils';
@@ -22,9 +24,12 @@ const SUMMARY_SELECT = {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly visibility: VisibilityService,
+    private readonly media: MediaService,
   ) {}
 
   /** Accepts either a uuid or a @username, so FE can route on either. */
@@ -150,7 +155,38 @@ export class UsersService {
     ]);
 
     await this.prisma.user.update({ where: { id: userId }, data: dto });
+
+    // After the row is updated, so an image that was just cleared or replaced
+    // no longer counts as referenced. Cleanup must never fail the update —
+    // a leaked object is a storage cost, a failed save is lost work.
+    await Promise.all([
+      this.discardReplacedImage(userId, dto.profileImage, current.profileImage),
+      this.discardReplacedImage(userId, dto.coverImage, current.coverImage),
+    ]);
+
     return this.getProfile(userId, userId);
+  }
+
+  /**
+   * Clearing or replacing an avatar leaves the old object in the bucket, since
+   * the field holds a URL and nothing cascades. Delete it when the field
+   * actually changed and nothing else uses it.
+   */
+  private async discardReplacedImage(
+    userId: string,
+    next: string | null | undefined,
+    previous: string | null,
+  ): Promise<void> {
+    if (next === undefined) return;
+    if (!previous || previous === next) return;
+
+    await this.media.deleteIfUnreferenced(userId, previous).catch((error) => {
+      this.logger.warn(
+        `Could not remove the replaced image ${previous} for user ${userId}: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    });
   }
 
   /**

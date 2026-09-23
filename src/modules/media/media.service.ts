@@ -60,6 +60,46 @@ export class MediaService {
     return { message: 'Media deleted' };
   }
 
+  /**
+   * Deletes a media item once nothing points at it any more.
+   *
+   * Avatars and covers are stored on the user as a plain URL rather than a
+   * foreign key, so nothing cascades when the field is cleared or replaced and
+   * the object would sit in the bucket forever. Called after the user row has
+   * already been updated, so the reference check sees the new state.
+   *
+   * Returns false without touching anything when the item is still in use —
+   * the same upload can legitimately be a trip photo or a post image too.
+   */
+  async deleteIfUnreferenced(userId: string, url: string | null | undefined): Promise<boolean> {
+    if (!url) return false;
+
+    const media = await this.prisma.media.findFirst({
+      where: { url, userId },
+      select: {
+        id: true,
+        storageKey: true,
+        _count: { select: { tripPhotos: true, postMedia: true, tripCovers: true } },
+      },
+    });
+    if (!media) return false;
+
+    const { tripPhotos, postMedia, tripCovers } = media._count;
+    if (tripPhotos > 0 || postMedia > 0 || tripCovers > 0) return false;
+
+    // No foreign key backs profileImage/coverImage, so this one is a value
+    // check rather than a relation count — including other people's profiles.
+    const stillOnAProfile = await this.prisma.user.count({
+      where: { OR: [{ profileImage: url }, { coverImage: url }] },
+    });
+    if (stillOnAProfile > 0) return false;
+
+    await this.prisma.media.delete({ where: { id: media.id } });
+    if (media.storageKey) await this.storage.delete(media.storageKey);
+
+    return true;
+  }
+
   async listMine(userId: string, limit = 50): Promise<MediaDto[]> {
     return this.prisma.media.findMany({
       where: { userId },
