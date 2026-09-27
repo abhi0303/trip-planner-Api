@@ -43,21 +43,45 @@ export class CreateTripDto {
   @IsNotEmpty()
   country: string;
 
-  @ApiPropertyOptional({ example: 'Goa' })
+  @ApiPropertyOptional({
+    example: 'Goa',
+    description:
+      'Optional. Derived from the destinations when omitted, and left empty when they span more than one state.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(80)
   state?: string;
 
-  @ApiProperty({ example: 'South Goa', description: 'Free-text label shown on the trip card' })
+  @ApiPropertyOptional({
+    example: 'North Goa, South Goa',
+    description:
+      'Label shown on the trip card. Optional when destinationIds is given — the server then joins the destination names. Send it only to override that label.',
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
-  destination: string;
+  destination?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    maxItems: 10,
+    example: ['3fa85f64-…', '2cb96e21-…'],
+    description:
+      'Canonical places this trip was to, in display order. This is what powers discovery: GET /trips?destinationId= matches a trip if ANY of these is that id. On PATCH the list sent replaces the whole set.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  @ArrayMaxSize(10)
+  destinationIds?: string[];
 
   @ApiPropertyOptional({
     format: 'uuid',
-    description: 'Canonical place for the destination. Strongly recommended — it powers discovery.',
+    deprecated: true,
+    description: 'Legacy single destination. Use destinationIds. Mirrors destinations[0] on read.',
   })
   @IsOptional()
   @IsUUID()

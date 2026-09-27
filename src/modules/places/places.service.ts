@@ -98,6 +98,7 @@ export class PlacesService {
       longitude: place.longitude,
       description: place.description,
       isVerified: place.isVerified,
+      isDestination: place.isDestination,
       experienceCount: aggregates.experienceCount,
       parent: place.parent,
       aggregates,
@@ -173,6 +174,25 @@ export class PlacesService {
     });
   }
 
+  /**
+   * States/regions present in the place catalogue, with how many places sit in
+   * each. Unlike `destinations`, this does not require anyone to have published
+   * a trip there yet, so it can back a picker for an unvisited country.
+   */
+  async states(countryCode?: string) {
+    const rows = await this.prisma.place.groupBy({
+      by: ['state'],
+      where: {
+        state: { not: null },
+        ...(countryCode ? { countryCode } : {}),
+      },
+      _count: { _all: true },
+      orderBy: { state: 'asc' },
+    });
+
+    return rows.map((r) => ({ state: r.state as string, placeCount: r._count._all }));
+  }
+
   /** Distinct countries/states that have published trips, for filter dropdowns. */
   async destinations(countryCode?: string) {
     const rows = await this.prisma.trip.groupBy({
@@ -197,7 +217,10 @@ export class PlacesService {
 
   private async buildSlug(name: string, qualifier?: string): Promise<string> {
     const base = qualifier ? toSlug(`${name}-${qualifier}`) : toSlug(name);
-    const taken = await this.prisma.place.findUnique({ where: { slug: base }, select: { id: true } });
+    const taken = await this.prisma.place.findUnique({
+      where: { slug: base },
+      select: { id: true },
+    });
     return taken ? uniqueSlug(base) : base;
   }
 

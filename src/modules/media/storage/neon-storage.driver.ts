@@ -38,9 +38,7 @@ export class NeonStorageDriver extends StorageDriver implements OnModuleInit {
     super();
 
     this.bucket = this.config.get<string>('media.neon.bucket') as string;
-    this.endpoint = stripTrailingSlash(
-      this.config.get<string>('media.neon.endpoint') as string,
-    );
+    this.endpoint = stripTrailingSlash(this.config.get<string>('media.neon.endpoint') as string);
     this.isPublicBucket = this.config.get<string>('media.neon.accessLevel') !== 'private';
 
     this.client = new S3Client({

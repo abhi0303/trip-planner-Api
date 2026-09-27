@@ -572,7 +572,14 @@ const POST_INCLUDE = {
     orderBy: { sequence: 'asc' },
     include: {
       media: {
-        select: { id: true, url: true, thumbnailUrl: true, blurhash: true, width: true, height: true },
+        select: {
+          id: true,
+          url: true,
+          thumbnailUrl: true,
+          blurhash: true,
+          width: true,
+          height: true,
+        },
       },
     },
   },

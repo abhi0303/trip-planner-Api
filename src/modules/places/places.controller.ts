@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   ApiEnvelope,
   ApiErrorResponses,
@@ -39,10 +39,24 @@ export class PlacesController {
   }
 
   @Public()
+  @Get('states')
+  @ApiOperation({
+    summary: 'States in the place catalogue',
+    description:
+      'Every state that has at least one canonical place, with how many. Unlike /places/destinations this does not require a published trip, so it can back a picker for a country nobody has visited yet.',
+  })
+  @ApiQuery({ name: 'countryCode', required: false, example: 'IN' })
+  @ApiEnvelope(Object, { isArray: true })
+  states(@Query('countryCode') countryCode?: string) {
+    return this.places.states(countryCode);
+  }
+
+  @Public()
   @Get('destinations')
   @ApiOperation({
-    summary: 'Destinations that have published trips',
-    description: 'Feeds country/state filter dropdowns.',
+    summary: 'Country/state combinations that have published trips',
+    description:
+      'Returns { countryCode, country, state, tripCount } — despite the name these are states, not destination places. Use /places/states for a catalogue-wide list, or /places/search?destinationsOnly=true for actual destinations.',
   })
   @ApiEnvelope(Object, { isArray: true })
   destinations(@Query('countryCode') countryCode?: string) {

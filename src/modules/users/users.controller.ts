@@ -22,11 +22,7 @@ import {
 import { MessageDto } from 'src/common/dto/message.dto';
 import { CursorPaginationDto } from 'src/common/dto/pagination.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import {
-  TravelMapEntryDto,
-  UserProfileDto,
-  UserSummaryDto,
-} from './dto/user-response.dto';
+import { TravelMapEntryDto, UserProfileDto, UserSummaryDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -121,7 +117,10 @@ export class UsersController {
   })
   @ApiEnvelope(TravelMapEntryDto, { isArray: true })
   @ApiErrorResponses(404)
-  travelMap(@Param('idOrUsername') idOrUsername: string, @CurrentUser() viewer?: AuthenticatedUser) {
+  travelMap(
+    @Param('idOrUsername') idOrUsername: string,
+    @CurrentUser() viewer?: AuthenticatedUser,
+  ) {
     return this.users.travelMap(idOrUsername, viewer?.id);
   }
 }

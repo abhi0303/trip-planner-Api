@@ -400,14 +400,15 @@ model Place {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tripPlaces    TripPlace[]
-  stays         TripStay[]
-  photos        TripPhoto[]
-  ratings       TripRating[]
-  activities    TripActivity[]
-  posts         Post[]
-  realityChecks RealityCheck[]
-  trips         Trip[]         @relation("tripDestination")
+  tripPlaces       TripPlace[]
+  tripDestinations TripDestination[]
+  stays            TripStay[]
+  photos           TripPhoto[]
+  ratings          TripRating[]
+  activities       TripActivity[]
+  posts            Post[]
+  realityChecks    RealityCheck[]
+  trips            Trip[]            @relation("tripDestination")
 
   @@index([countryCode, state])
   @@index([category])
@@ -433,7 +434,12 @@ model Trip {
   countryCode      String  @db.Char(2)
   country          String
   state            String?
+  /// Derived label for cards, e.g. "North Goa, South Goa". Kept as a column so
+  /// existing clients and saved links keep working; computed from `destinations`
+  /// unless the client sends an explicit label.
   destination      String
+  /// Legacy single destination, mirrored from destinations[0]. Reads still work;
+  /// new writes should use destinationIds.
   destinationId    String? @db.Uuid
   destinationPlace Place?  @relation("tripDestination", fields: [destinationId], references: [id], onDelete: SetNull)
 
@@ -489,6 +495,7 @@ model Trip {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
+  destinations  TripDestination[]
   places        TripPlace[]
   expenses      TripExpense[]
   stays         TripStay[]
@@ -507,6 +514,30 @@ model Trip {
   @@index([startDate])
   @@index([startMonth, status])
   @@map("trips")
+}
+
+/// Where a trip went, at destination granularity: Goa -> [North Goa, South Goa].
+/// Deliberately separate from TripPlace, which records the individual spots
+/// visited — a destination answers "where was this trip", a place answers
+/// "what did you see there".
+model TripDestination {
+  id      String @id @default(uuid()) @db.Uuid
+  tripId  String @db.Uuid
+  trip    Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  placeId String @db.Uuid
+  /// Restrict, not Cascade: a destination is part of the trip's identity, so a
+  /// place cannot be deleted out from under it.
+  place   Place  @relation(fields: [placeId], references: [id], onDelete: Restrict)
+
+  /// Client-supplied order; destinations[0] mirrors into trips.destinationId.
+  sequence Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([tripId, placeId])
+  @@index([placeId])
+  @@index([tripId, sequence])
+  @@map("trip_destinations")
 }
 
 model TripPlace {

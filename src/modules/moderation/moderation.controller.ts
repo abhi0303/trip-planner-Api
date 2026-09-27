@@ -67,10 +67,7 @@ export class ModerationController {
   @ApiOperation({ summary: 'Unblock a user' })
   @ApiEnvelope(Object)
   @ApiErrorResponses(401)
-  unblock(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  unblock(@Param('userId', ParseUUIDPipe) userId: string, @CurrentUser() user: AuthenticatedUser) {
     return this.moderation.unblock(user.id, userId);
   }
 
@@ -114,10 +111,7 @@ export class ModerationController {
   })
   @ApiEnvelope(MessageDto)
   @ApiErrorResponses(401, 403, 404)
-  setStatus(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Body('status') status: UserStatus,
-  ) {
+  setStatus(@Param('userId', ParseUUIDPipe) userId: string, @Body('status') status: UserStatus) {
     return this.moderation.setUserStatus(userId, status);
   }
 

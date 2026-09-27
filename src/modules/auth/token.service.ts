@@ -19,7 +19,10 @@ export class TokenService {
    * Refresh tokens are opaque random strings stored as SHA-256 hashes, so a
    * database leak cannot be replayed. Rotation happens in `rotate()`.
    */
-  async issue(user: Pick<User, 'id' | 'email' | 'username' | 'role'>, context?: { userAgent?: string; ip?: string }): Promise<AuthTokensDto> {
+  async issue(
+    user: Pick<User, 'id' | 'email' | 'username' | 'role'>,
+    context?: { userAgent?: string; ip?: string },
+  ): Promise<AuthTokensDto> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -57,7 +60,10 @@ export class TokenService {
    * Single-use rotation: the presented token is revoked as part of the same
    * transaction that issues its replacement.
    */
-  async rotate(refreshToken: string, context?: { userAgent?: string; ip?: string }): Promise<{ tokens: AuthTokensDto; user: User }> {
+  async rotate(
+    refreshToken: string,
+    context?: { userAgent?: string; ip?: string },
+  ): Promise<{ tokens: AuthTokensDto; user: User }> {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: this.hash(refreshToken) },
       include: { user: true },

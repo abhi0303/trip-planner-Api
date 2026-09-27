@@ -45,10 +45,7 @@ export class MediaController {
   })
   @ApiEnvelope(MediaDto, { status: 201, isArray: true })
   @ApiErrorResponses(400, 401, 413)
-  upload(
-    @CurrentUser() user: AuthenticatedUser,
-    @UploadedFiles() files: Express.Multer.File[],
-  ) {
+  upload(@CurrentUser() user: AuthenticatedUser, @UploadedFiles() files: Express.Multer.File[]) {
     return this.media.uploadMany(user.id, files);
   }
 

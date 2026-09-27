@@ -272,8 +272,18 @@ export class TripCardDto {
   @ApiPropertyOptional({ type: String, nullable: true, example: 'Goa' })
   state: string | null;
 
-  @ApiProperty({ example: 'South Goa' })
+  @ApiProperty({
+    example: 'North Goa, South Goa',
+    description: 'Card label. Joined from `destinations` unless the author set one.',
+  })
   destination: string;
+
+  @ApiProperty({
+    type: [PlaceSummaryDto],
+    description:
+      'Everywhere this trip went, in the order the author arranged them. Empty only for trips created before multi-destination support.',
+  })
+  destinations: PlaceSummaryDto[];
 
   @ApiProperty({ format: 'date' })
   startDate: Date;

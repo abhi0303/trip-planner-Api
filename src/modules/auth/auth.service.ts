@@ -112,7 +112,10 @@ export class AuthService {
       if (!user.googleId) {
         user = await this.prisma.user.update({
           where: { id: user.id },
-          data: { googleId: payload.sub, emailVerified: user.emailVerified || !!payload.email_verified },
+          data: {
+            googleId: payload.sub,
+            emailVerified: user.emailVerified || !!payload.email_verified,
+          },
         });
       }
     } else {

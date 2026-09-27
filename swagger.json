@@ -1556,9 +1556,63 @@
         ]
       }
     },
+    "/places/states": {
+      "get": {
+        "description": "Every state that has at least one canonical place, with how many. Unlike /places/destinations this does not require a published trip, so it can back a picker for a country nobody has visited yet.",
+        "operationId": "Places_states",
+        "parameters": [
+          {
+            "name": "countryCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "IN",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Object"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "States in the place catalogue",
+        "tags": [
+          "Places"
+        ]
+      }
+    },
     "/places/destinations": {
       "get": {
-        "description": "Feeds country/state filter dropdowns.",
+        "description": "Returns { countryCode, country, state, tripCount } — despite the name these are states, not destination places. Use /places/states for a catalogue-wide list, or /places/search?destinationsOnly=true for actual destinations.",
         "operationId": "Places_destinations",
         "parameters": [
           {
@@ -1603,7 +1657,7 @@
             }
           }
         },
-        "summary": "Destinations that have published trips",
+        "summary": "Country/state combinations that have published trips",
         "tags": [
           "Places"
         ]
@@ -8793,6 +8847,11 @@
             "type": "number",
             "example": 137,
             "description": "Published experiences at this place"
+          },
+          "isDestination": {
+            "type": "boolean",
+            "example": true,
+            "description": "True for places travellers pick as a trip destination (South Goa) rather than individual spots they visit (Cola Beach)."
           }
         },
         "required": [
@@ -8802,7 +8861,8 @@
           "countryCode",
           "country",
           "category",
-          "experienceCount"
+          "experienceCount",
+          "isDestination"
         ]
       },
       "CreatePlaceDto": {
@@ -9131,6 +9191,11 @@
             "example": 137,
             "description": "Published experiences at this place"
           },
+          "isDestination": {
+            "type": "boolean",
+            "example": true,
+            "description": "True for places travellers pick as a trip destination (South Goa) rather than individual spots they visit (Cola Beach)."
+          },
           "description": {
             "type": "string",
             "nullable": true
@@ -9170,6 +9235,7 @@
           "country",
           "category",
           "experienceCount",
+          "isDestination",
           "isVerified",
           "aggregates",
           "realityChecks"
@@ -9204,7 +9270,15 @@
           },
           "destination": {
             "type": "string",
-            "example": "South Goa"
+            "example": "North Goa, South Goa",
+            "description": "Card label. Joined from `destinations` unless the author set one."
+          },
+          "destinations": {
+            "description": "Everywhere this trip went, in the order the author arranged them. Empty only for trips created before multi-destination support.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaceSummaryDto"
+            }
           },
           "startDate": {
             "format": "date",
@@ -9330,6 +9404,7 @@
           "country",
           "countryCode",
           "destination",
+          "destinations",
           "startDate",
           "endDate",
           "nights",
@@ -9787,7 +9862,15 @@
           },
           "destination": {
             "type": "string",
-            "example": "South Goa"
+            "example": "North Goa, South Goa",
+            "description": "Card label. Joined from `destinations` unless the author set one."
+          },
+          "destinations": {
+            "description": "Everywhere this trip went, in the order the author arranged them. Empty only for trips created before multi-destination support.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaceSummaryDto"
+            }
           },
           "startDate": {
             "format": "date",
@@ -10055,6 +10138,7 @@
           "country",
           "countryCode",
           "destination",
+          "destinations",
           "startDate",
           "endDate",
           "nights",
@@ -10102,17 +10186,32 @@
           },
           "state": {
             "type": "string",
-            "example": "Goa"
+            "example": "Goa",
+            "description": "Optional. Derived from the destinations when omitted, and left empty when they span more than one state."
           },
           "destination": {
             "type": "string",
-            "example": "South Goa",
-            "description": "Free-text label shown on the trip card"
+            "example": "North Goa, South Goa",
+            "description": "Label shown on the trip card. Optional when destinationIds is given — the server then joins the destination names. Send it only to override that label."
+          },
+          "destinationIds": {
+            "maxItems": 10,
+            "example": [
+              "3fa85f64-…",
+              "2cb96e21-…"
+            ],
+            "description": "Canonical places this trip was to, in display order. This is what powers discovery: GET /trips?destinationId= matches a trip if ANY of these is that id. On PATCH the list sent replaces the whole set.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           "destinationId": {
             "type": "string",
             "format": "uuid",
-            "description": "Canonical place for the destination. Strongly recommended — it powers discovery."
+            "deprecated": true,
+            "description": "Legacy single destination. Use destinationIds. Mirrors destinations[0] on read."
           },
           "startDate": {
             "type": "string",
@@ -10294,7 +10393,6 @@
           "title",
           "countryCode",
           "country",
-          "destination",
           "startDate",
           "endDate"
         ]
@@ -10317,17 +10415,32 @@
           },
           "state": {
             "type": "string",
-            "example": "Goa"
+            "example": "Goa",
+            "description": "Optional. Derived from the destinations when omitted, and left empty when they span more than one state."
           },
           "destination": {
             "type": "string",
-            "example": "South Goa",
-            "description": "Free-text label shown on the trip card"
+            "example": "North Goa, South Goa",
+            "description": "Label shown on the trip card. Optional when destinationIds is given — the server then joins the destination names. Send it only to override that label."
+          },
+          "destinationIds": {
+            "maxItems": 10,
+            "example": [
+              "3fa85f64-…",
+              "2cb96e21-…"
+            ],
+            "description": "Canonical places this trip was to, in display order. This is what powers discovery: GET /trips?destinationId= matches a trip if ANY of these is that id. On PATCH the list sent replaces the whole set.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           "destinationId": {
             "type": "string",
             "format": "uuid",
-            "description": "Canonical place for the destination. Strongly recommended — it powers discovery."
+            "deprecated": true,
+            "description": "Legacy single destination. Use destinationIds. Mirrors destinations[0] on read."
           },
           "startDate": {
             "type": "string",

@@ -56,7 +56,9 @@ export class CollectionsService {
   }
 
   async removeCollection(collectionId: string, userId: string): Promise<{ message: string }> {
-    const deleted = await this.prisma.collection.deleteMany({ where: { id: collectionId, userId } });
+    const deleted = await this.prisma.collection.deleteMany({
+      where: { id: collectionId, userId },
+    });
     if (deleted.count === 0) throw new NotFoundException('Collection not found');
     // Saves survive: onDelete SetNull leaves them uncategorised rather than
     // silently deleting a user's bookmarks.
@@ -88,10 +90,7 @@ export class CollectionsService {
 
     return {
       ...page,
-      items: await this.trips.toCards(
-        page.items.map((s) => s.trip).filter(Boolean),
-        userId,
-      ),
+      items: await this.trips.toCards(page.items.map((s) => s.trip).filter(Boolean), userId),
     };
   }
 

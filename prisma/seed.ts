@@ -50,11 +50,36 @@ async function main(): Promise<void> {
   console.log('Creating users...');
   const users = await Promise.all(
     [
-      { username: 'sreyanse', name: 'Sreyanse Pradhan', homeCity: 'Bengaluru', bio: 'Beach person. Documenting every rupee.' },
-      { username: 'rahul', name: 'Rahul Menon', homeCity: 'Mumbai', bio: 'Road trips and street food.' },
-      { username: 'priya', name: 'Priya Sharma', homeCity: 'Delhi', bio: 'Budget travel, solo mostly.' },
-      { username: 'amit', name: 'Amit Verma', homeCity: 'Pune', bio: 'Mountains > beaches. Usually.' },
-      { username: 'neha', name: 'Neha Iyer', homeCity: 'Chennai', bio: 'Photographer. Monsoon chaser.' },
+      {
+        username: 'sreyanse',
+        name: 'Sreyanse Pradhan',
+        homeCity: 'Bengaluru',
+        bio: 'Beach person. Documenting every rupee.',
+      },
+      {
+        username: 'rahul',
+        name: 'Rahul Menon',
+        homeCity: 'Mumbai',
+        bio: 'Road trips and street food.',
+      },
+      {
+        username: 'priya',
+        name: 'Priya Sharma',
+        homeCity: 'Delhi',
+        bio: 'Budget travel, solo mostly.',
+      },
+      {
+        username: 'amit',
+        name: 'Amit Verma',
+        homeCity: 'Pune',
+        bio: 'Mountains > beaches. Usually.',
+      },
+      {
+        username: 'neha',
+        name: 'Neha Iyer',
+        homeCity: 'Chennai',
+        bio: 'Photographer. Monsoon chaser.',
+      },
     ].map((u) =>
       prisma.user.create({
         data: {
@@ -83,8 +108,14 @@ async function main(): Promise<void> {
 
   for (const [followerId, followingId] of follows) {
     await prisma.follow.create({ data: { followerId, followingId } });
-    await prisma.user.update({ where: { id: followerId }, data: { followingCount: { increment: 1 } } });
-    await prisma.user.update({ where: { id: followingId }, data: { followerCount: { increment: 1 } } });
+    await prisma.user.update({
+      where: { id: followerId },
+      data: { followingCount: { increment: 1 } },
+    });
+    await prisma.user.update({
+      where: { id: followingId },
+      data: { followerCount: { increment: 1 } },
+    });
   }
 
   // --- Places --------------------------------------------------------------
@@ -217,7 +248,12 @@ async function main(): Promise<void> {
     endDate: '2026-08-15',
     adults: 2,
     expenseMode: ExpenseMode.DETAILED,
-    travelStyles: [TravelStyle.COUPLE, TravelStyle.BEACH, TravelStyle.RELAXATION, TravelStyle.PHOTOGRAPHY],
+    travelStyles: [
+      TravelStyle.COUPLE,
+      TravelStyle.BEACH,
+      TravelStyle.RELAXATION,
+      TravelStyle.PHOTOGRAPHY,
+    ],
     weather: Weather.RAINY,
     crowdLevel: CrowdLevel.LOW,
     experience:
@@ -304,26 +340,45 @@ async function main(): Promise<void> {
       },
     ],
     itinerary: [
-      { dayNumber: 1, title: 'Arrival and Agonda sunset', activities: ['Arrival at Goa Airport', 'Hotel check-in', 'Agonda beach walk'] },
-      { dayNumber: 2, title: 'Cola Beach day', activities: ['Drive to Cola Beach', 'Lagoon swim', 'Sunset at Agonda'] },
-      { dayNumber: 3, title: 'Palolem and the fort', activities: ['Palolem Beach', 'Cabo de Rama Fort', 'Seafood dinner'] },
+      {
+        dayNumber: 1,
+        title: 'Arrival and Agonda sunset',
+        activities: ['Arrival at Goa Airport', 'Hotel check-in', 'Agonda beach walk'],
+      },
+      {
+        dayNumber: 2,
+        title: 'Cola Beach day',
+        activities: ['Drive to Cola Beach', 'Lagoon swim', 'Sunset at Agonda'],
+      },
+      {
+        dayNumber: 3,
+        title: 'Palolem and the fort',
+        activities: ['Palolem Beach', 'Cabo de Rama Fort', 'Seafood dinner'],
+      },
       { dayNumber: 4, title: 'Return', activities: ['Check-out', 'Flight home'] },
     ],
     post: 'Four days in South Goa in peak monsoon. Quieter than we imagined, and half the price of December. Full breakdown in the trip.',
   });
 
+  // A real two-destination trip, so the frontend has one to build against.
   await createTrip({
     user: rahul,
-    title: 'North Goa on a budget',
+    title: 'Goa end to end: north and south',
     state: 'Goa',
-    destination: 'North Goa',
+    destination: 'North Goa, South Goa',
     destinationId: northGoa.id,
+    destinations: [northGoa.id, southGoa.id],
     startDate: '2026-01-10',
     endDate: '2026-01-13',
     adults: 2,
     expenseMode: ExpenseMode.TOTAL,
     totalExpense: 32000,
-    travelStyles: [TravelStyle.COUPLE, TravelStyle.BEACH, TravelStyle.NIGHTLIFE, TravelStyle.BUDGET],
+    travelStyles: [
+      TravelStyle.COUPLE,
+      TravelStyle.BEACH,
+      TravelStyle.NIGHTLIFE,
+      TravelStyle.BUDGET,
+    ],
     weather: Weather.SUNNY,
     crowdLevel: CrowdLevel.HIGH,
     experience: 'Peak season North Goa. Loud, crowded, and genuinely fun if that is what you want.',
@@ -359,10 +414,16 @@ async function main(): Promise<void> {
     adults: 1,
     expenseMode: ExpenseMode.TOTAL,
     totalExpense: 18000,
-    travelStyles: [TravelStyle.SOLO, TravelStyle.BUDGET, TravelStyle.BACKPACKING, TravelStyle.BEACH],
+    travelStyles: [
+      TravelStyle.SOLO,
+      TravelStyle.BUDGET,
+      TravelStyle.BACKPACKING,
+      TravelStyle.BEACH,
+    ],
     weather: Weather.SUNNY,
     crowdLevel: CrowdLevel.MODERATE,
-    experience: 'Hostels in Palolem, sleeper bus in and out. December is busier but the sea is calm.',
+    experience:
+      'Hostels in Palolem, sleeper bus in and out. December is busier but the sea is calm.',
     adviceForTravelers: 'Sleeper bus from Bengaluru is ₹1,200 and saves a night of accommodation.',
     places: [
       { place: palolem, sequence: 0, durationMinutes: 480 },
@@ -385,7 +446,11 @@ async function main(): Promise<void> {
       {
         type: RatingType.PLACE,
         placeId: palolem.id,
-        scores: { [RatingCriteria.SCENERY]: 4, [RatingCriteria.CROWD]: 3, [RatingCriteria.VALUE]: 5 },
+        scores: {
+          [RatingCriteria.SCENERY]: 4,
+          [RatingCriteria.CROWD]: 3,
+          [RatingCriteria.VALUE]: 5,
+        },
       },
     ],
     realityChecks: [
@@ -461,7 +526,11 @@ async function main(): Promise<void> {
       {
         type: RatingType.PLACE,
         placeId: solangValley.id,
-        scores: { [RatingCriteria.SCENERY]: 5, [RatingCriteria.CROWD]: 2, [RatingCriteria.VALUE]: 3 },
+        scores: {
+          [RatingCriteria.SCENERY]: 5,
+          [RatingCriteria.CROWD]: 2,
+          [RatingCriteria.VALUE]: 3,
+        },
       },
     ],
     realityChecks: [
@@ -606,6 +675,8 @@ interface TripInput {
   state: string;
   destination: string;
   destinationId?: string;
+  /** Ordered canonical destinations; defaults to [destinationId]. */
+  destinations?: string[];
   startDate: string;
   endDate: string;
   adults: number;
@@ -621,7 +692,12 @@ interface TripInput {
   wentWrong?: string;
   wouldDoDifferently?: string;
   adviceForTravelers?: string;
-  places: { place: { id: string }; sequence: number; visitDate?: string; durationMinutes?: number }[];
+  places: {
+    place: { id: string };
+    sequence: number;
+    visitDate?: string;
+    durationMinutes?: number;
+  }[];
   expenses?: { category: ExpenseCategory; subcategory: string; amount: number }[];
   stays?: {
     hotelName: string;
@@ -688,6 +764,14 @@ async function createTrip(input: TripInput) {
     },
   });
 
+  // Destinations: where the trip went, ordered. Falls back to the single
+  // destinationId so older entries in this file keep working.
+  const destinationPlaces =
+    input.destinations ?? (input.destinationId ? [input.destinationId] : []);
+  for (const [sequence, placeId] of destinationPlaces.entries()) {
+    await prisma.tripDestination.create({ data: { tripId: trip.id, placeId, sequence } });
+  }
+
   for (const p of input.places) {
     await prisma.tripPlace.create({
       data: {
@@ -715,7 +799,10 @@ async function createTrip(input: TripInput) {
         location: s.location,
         checkIn: s.checkIn ? new Date(s.checkIn) : undefined,
         checkOut: s.checkOut ? new Date(s.checkOut) : undefined,
-        nights: s.checkIn && s.checkOut ? calculateDuration(new Date(s.checkIn), new Date(s.checkOut)).nights : undefined,
+        nights:
+          s.checkIn && s.checkOut
+            ? calculateDuration(new Date(s.checkIn), new Date(s.checkOut)).nights
+            : undefined,
         amount: s.amount,
         roomType: s.roomType,
         rating: s.rating,
@@ -819,10 +906,10 @@ async function refreshAllPlaceAggregates(): Promise<void> {
         experienceCount: trips.length,
         travelerCount: new Set(trips.map((t) => t.userId)).size,
         avgRating: ratings._avg.score,
-        avgVisitMinutes: visits._avg.durationMinutes ? Math.round(visits._avg.durationMinutes) : null,
-        avgSpendPerPerson: spends.length
-          ? spends.reduce((a, b) => a + b, 0) / spends.length
+        avgVisitMinutes: visits._avg.durationMinutes
+          ? Math.round(visits._avg.durationMinutes)
           : null,
+        avgSpendPerPerson: spends.length ? spends.reduce((a, b) => a + b, 0) / spends.length : null,
         aggregatesAt: new Date(),
       },
     });

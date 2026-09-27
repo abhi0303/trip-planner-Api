@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { ExpenseMode, Prisma, TripStatus, Visibility } from '@prisma/client';
 import { VisibilityService } from 'src/common/services/visibility.service';
+import { PlaceSummaryDto as PlaceSummary } from 'src/modules/places/dto/place-response.dto';
 import {
   buildPage,
   calculateDuration,
   decodeCursor,
+  deriveDestinationFields,
   deriveSeason,
   round2,
   toNumber,
@@ -41,6 +43,23 @@ export class TripsService {
 
   async create(userId: string, dto: CreateTripDto): Promise<TripDetailDto> {
     await this.assertOwnsMedia(userId, dto.coverMediaId);
+
+    // destinationId is the legacy single-slot field; treat it as a one-item set
+    // so old and new clients travel the same code path.
+    const destinations = await this.resolveDestinations(
+      dto.destinationIds ?? (dto.destinationId ? [dto.destinationId] : undefined),
+      dto.countryCode,
+    );
+    if (!destinations.length && !dto.destination) {
+      throw new BadRequestException(
+        'Give the trip a destination: send destinationIds, or a destination label.',
+      );
+    }
+    const derived = deriveDestinationFields(destinations, {
+      destination: dto.destination,
+      state: dto.state,
+    });
+
     const { startDate, endDate } = this.parseDates(dto.startDate, dto.endDate);
     const { nights, days } = calculateDuration(startDate, endDate);
 
@@ -54,9 +73,9 @@ export class TripsService {
         slug: uniqueSlug(dto.title),
         countryCode: dto.countryCode,
         country: dto.country,
-        state: dto.state,
-        destination: dto.destination,
-        destinationId: dto.destinationId,
+        state: derived.state,
+        destination: derived.destination,
+        destinationId: derived.destinationId,
         startDate,
         endDate,
         nights,
@@ -89,12 +108,28 @@ export class TripsService {
       select: { id: true },
     });
 
+    if (destinations.length) await this.writeDestinations(trip.id, destinations);
+
     return this.findOne(trip.id, userId);
   }
 
   async update(tripId: string, userId: string, dto: UpdateTripDto): Promise<TripDetailDto> {
     const existing = await this.assertOwner(tripId, userId);
     await this.assertOwnsMedia(userId, dto.coverMediaId);
+
+    // Only touch the destination set when the client actually sent one; a PATCH
+    // that changes the title must not wipe where the trip went.
+    const countryCode = dto.countryCode ?? existing.countryCode;
+    const replacingDestinations = dto.destinationIds !== undefined;
+    const destinations = replacingDestinations
+      ? await this.resolveDestinations(dto.destinationIds, countryCode)
+      : [];
+    const derived = replacingDestinations
+      ? deriveDestinationFields(destinations, {
+          destination: dto.destination,
+          state: dto.state,
+        })
+      : null;
 
     // Dates can be edited one at a time, so re-derive from the merged pair.
     const startDate = dto.startDate
@@ -127,9 +162,9 @@ export class TripsService {
         title: dto.title,
         countryCode: dto.countryCode,
         country: dto.country,
-        state: dto.state,
-        destination: dto.destination,
-        destinationId: dto.destinationId,
+        state: derived ? derived.state : dto.state,
+        destination: derived ? derived.destination : dto.destination,
+        destinationId: derived ? derived.destinationId : dto.destinationId,
         startDate,
         endDate,
         nights,
@@ -159,6 +194,8 @@ export class TripsService {
         coverMediaId: dto.coverMediaId,
       },
     });
+
+    if (replacingDestinations) await this.writeDestinations(tripId, destinations);
 
     // Switching into DETAILED mode makes the line items authoritative.
     if (dto.expenseMode === ExpenseMode.DETAILED) await this.expenses.syncTripTotal(tripId);
@@ -311,7 +348,9 @@ export class TripsService {
       ...(query.userId ? { userId: query.userId } : {}),
       ...(query.countryCode ? { countryCode: query.countryCode } : {}),
       ...(query.state ? { state: { equals: query.state, mode: 'insensitive' } } : {}),
-      ...(query.destinationId ? { destinationId: query.destinationId } : {}),
+      // Matches when ANY of the trip's destinations is the one asked for —
+      // a [North Goa, South Goa] trip must surface under either.
+      ...(query.destinationId ? { destinations: { some: { placeId: query.destinationId } } } : {}),
       ...(query.placeId ? { places: { some: { placeId: query.placeId } } } : {}),
       ...(query.month ? { startMonth: query.month } : {}),
       ...(query.season ? { season: query.season } : {}),
@@ -387,6 +426,55 @@ export class TripsService {
   // -------------------------------------------------------------------------
   // Helpers shared with the section services
   // -------------------------------------------------------------------------
+
+  /**
+   * Turns the client's destination ids into ordered places, rejecting anything
+   * that does not exist or sits in another country. Duplicates collapse while
+   * keeping first-seen order, so a double-tap in the picker is harmless.
+   */
+  private async resolveDestinations(
+    ids: string[] | undefined,
+    countryCode: string,
+  ): Promise<PlaceSummary[]> {
+    if (!ids?.length) return [];
+
+    const ordered = [...new Set(ids)];
+
+    const places = await this.prisma.place.findMany({
+      where: { id: { in: ordered } },
+      select: { ...PLACE_SUMMARY_SELECT },
+    });
+
+    const byId = new Map(places.map((p) => [p.id, p]));
+
+    const unknown = ordered.filter((id) => !byId.has(id));
+    if (unknown.length) {
+      throw new BadRequestException(
+        `These destinationIds do not exist: ${unknown.join(', ')}. Create the place with POST /places first.`,
+      );
+    }
+
+    const foreign = ordered.map((id) => byId.get(id)!).filter((p) => p.countryCode !== countryCode);
+    if (foreign.length) {
+      throw new BadRequestException(
+        `${foreign.map((p) => `${p.name} (${p.countryCode})`).join(', ')} ${
+          foreign.length === 1 ? 'is' : 'are'
+        } not in ${countryCode}. A trip's destinations must all be in its own country.`,
+      );
+    }
+
+    return ordered.map((id) => byId.get(id)!);
+  }
+
+  /** Replaces a trip's destination set, preserving the order given. */
+  private async writeDestinations(tripId: string, destinations: PlaceSummary[]): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.tripDestination.deleteMany({ where: { tripId } }),
+      this.prisma.tripDestination.createMany({
+        data: destinations.map((d, sequence) => ({ tripId, placeId: d.id, sequence })),
+      }),
+    ]);
+  }
 
   /**
    * The cover is set by media id, so without this anyone could point their
@@ -484,6 +572,7 @@ export class TripsService {
         countryCode: trip.countryCode,
         state: trip.state,
         destination: trip.destination,
+        destinations: (trip.destinations ?? []).map((d: any) => d.place),
         startDate: trip.startDate,
         endDate: trip.endDate,
         nights: trip.nights,
@@ -558,6 +647,7 @@ export class TripsService {
       countryCode: trip.countryCode,
       state: trip.state,
       destination: trip.destination,
+      destinations: (trip.destinations ?? []).map((d: any) => d.place),
       startDate: trip.startDate,
       endDate: trip.endDate,
       nights: trip.nights,
@@ -759,6 +849,10 @@ export const TRIP_CARD_SELECT = {
   coverMedia: {
     select: { id: true, url: true, thumbnailUrl: true, blurhash: true, width: true, height: true },
   },
+  destinations: {
+    orderBy: { sequence: 'asc' },
+    select: { place: { select: PLACE_SUMMARY_SELECT } },
+  },
 } satisfies Prisma.TripSelect;
 
 const MEDIA_SELECT = {
@@ -773,6 +867,10 @@ const MEDIA_SELECT = {
 export const TRIP_DETAIL_INCLUDE = {
   user: { select: { id: true, username: true, name: true, profileImage: true } },
   coverMedia: { select: MEDIA_SELECT },
+  destinations: {
+    orderBy: { sequence: 'asc' },
+    select: { place: { select: PLACE_SUMMARY_SELECT } },
+  },
   places: {
     orderBy: { sequence: 'asc' },
     include: { place: { select: PLACE_SUMMARY_SELECT } },

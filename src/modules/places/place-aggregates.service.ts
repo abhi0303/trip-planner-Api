@@ -6,8 +6,18 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { PlaceAggregatesDto } from './dto/place-response.dto';
 
 const MONTH_LABELS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /**
@@ -97,7 +107,8 @@ export class PlaceAggregatesService {
       }
       monthCounts[trip.startDate.getUTCMonth()] += 1;
       for (const p of trip.places) {
-        if (p.placeId !== placeId) pairedCounts.set(p.placeId, (pairedCounts.get(p.placeId) ?? 0) + 1);
+        if (p.placeId !== placeId)
+          pairedCounts.set(p.placeId, (pairedCounts.get(p.placeId) ?? 0) + 1);
       }
     }
 
@@ -122,9 +133,10 @@ export class PlaceAggregatesService {
       // render "4.9 ★" off a single trip.
       avgRating: hasEnoughData ? overall : null,
       ratingBreakdown: hasEnoughData ? ratingBreakdown : [],
-      avgVisitMinutes: hasEnoughData && visitStats._avg.durationMinutes
-        ? Math.round(visitStats._avg.durationMinutes)
-        : null,
+      avgVisitMinutes:
+        hasEnoughData && visitStats._avg.durationMinutes
+          ? Math.round(visitStats._avg.durationMinutes)
+          : null,
       avgSpendPerPerson:
         hasEnoughData && spendSamples.length >= this.minSampleSize
           ? round2(spendSamples.reduce((a, b) => a + b, 0) / spendSamples.length)
@@ -183,4 +195,5 @@ export const PLACE_SUMMARY_SELECT = {
   latitude: true,
   longitude: true,
   experienceCount: true,
+  isDestination: true,
 } satisfies Prisma.PlaceSelect;

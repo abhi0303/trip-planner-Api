@@ -37,6 +37,13 @@ export class PlaceSummaryDto {
 
   @ApiProperty({ example: 137, description: 'Published experiences at this place' })
   experienceCount: number;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'True for places travellers pick as a trip destination (South Goa) rather than individual spots they visit (Cola Beach).',
+  })
+  isDestination: boolean;
 }
 
 export class CriteriaRatingDto {
