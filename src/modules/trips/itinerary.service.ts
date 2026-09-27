@@ -3,6 +3,7 @@ import { PLACE_SUMMARY_SELECT } from 'src/modules/places/place-aggregates.servic
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateActivityDto,
+  MoveActivitiesDto,
   ReorderActivitiesDto,
   UpdateActivityDto,
   UpsertTripDayDto,
@@ -85,7 +86,15 @@ export class ItineraryService {
 
   async updateActivity(tripId: string, activityId: string, userId: string, dto: UpdateActivityDto) {
     await this.trips.assertOwner(tripId, userId);
-    await this.assertActivityOnTrip(tripId, activityId);
+    const current = await this.assertActivityOnTrip(tripId, activityId);
+
+    // Moving days is an edit, not a delete-and-recreate: the activity keeps its
+    // id, its place and its times, and a half-failed move cannot lose what the
+    // traveller typed.
+    const move =
+      dto.dayNumber === undefined
+        ? null
+        : await this.resolveMoveTarget(tripId, userId, dto.dayNumber, current.dayId, dto.sequence);
 
     return this.prisma.tripActivity.update({
       where: { id: activityId },
@@ -96,10 +105,74 @@ export class ItineraryService {
         startTime: dto.startTime,
         endTime: dto.endTime,
         notes: dto.notes,
-        sequence: dto.sequence,
+        ...(move ? { dayId: move.dayId, sequence: move.sequence } : { sequence: dto.sequence }),
       },
       include: { place: { select: PLACE_SUMMARY_SELECT } },
     });
+  }
+
+  /**
+   * Moves a set of activities to one day in a single transaction, so a
+   * mis-filed group either lands together or not at all.
+   */
+  async moveActivities(tripId: string, userId: string, dto: MoveActivitiesDto) {
+    await this.trips.assertOwner(tripId, userId);
+
+    const ordered = [...new Set(dto.activityIds)];
+
+    const found = await this.prisma.tripActivity.findMany({
+      where: { id: { in: ordered }, day: { tripId } },
+      select: { id: true },
+    });
+    const known = new Set(found.map((a) => a.id));
+    const missing = ordered.filter((id) => !known.has(id));
+    if (missing.length) {
+      throw new NotFoundException(`These activities are not on this trip: ${missing.join(', ')}`);
+    }
+
+    // upsertDay enforces the trip's day range and creates the day when needed.
+    const day = await this.upsertDay(tripId, userId, { dayNumber: dto.dayNumber });
+
+    // Append in the order given, after whatever is already on that day. Ids
+    // being moved are excluded so re-sending the same set is stable.
+    const base = await this.nextSequence(day.id, ordered);
+
+    await this.prisma.$transaction(
+      ordered.map((id, index) =>
+        this.prisma.tripActivity.update({
+          where: { id },
+          data: { dayId: day.id, sequence: base + index },
+        }),
+      ),
+    );
+
+    // Both the source and target days changed, so return the whole itinerary
+    // and let the client replace its state in one go.
+    return this.list(tripId, userId);
+  }
+
+  /**
+   * Works out where a moved activity lands. Staying on the same day keeps its
+   * position unless the caller asked for one, so a plain field edit that also
+   * echoes the current dayNumber does not silently reorder the day.
+   */
+  private async resolveMoveTarget(
+    tripId: string,
+    userId: string,
+    dayNumber: number,
+    currentDayId: string,
+    explicitSequence?: number,
+  ): Promise<{ dayId: string; sequence: number | undefined }> {
+    const day = await this.upsertDay(tripId, userId, { dayNumber });
+
+    if (day.id === currentDayId) {
+      return { dayId: day.id, sequence: explicitSequence };
+    }
+
+    return {
+      dayId: day.id,
+      sequence: explicitSequence ?? (await this.nextSequence(day.id)),
+    };
   }
 
   async removeActivity(tripId: string, activityId: string, userId: string) {
@@ -145,19 +218,23 @@ export class ItineraryService {
     });
   }
 
-  private async nextSequence(dayId: string): Promise<number> {
+  private async nextSequence(dayId: string, excludeIds: string[] = []): Promise<number> {
     const last = await this.prisma.tripActivity.aggregate({
-      where: { dayId },
+      where: { dayId, ...(excludeIds.length ? { id: { notIn: excludeIds } } : {}) },
       _max: { sequence: true },
     });
     return (last._max.sequence ?? -1) + 1;
   }
 
-  private async assertActivityOnTrip(tripId: string, activityId: string): Promise<void> {
+  private async assertActivityOnTrip(
+    tripId: string,
+    activityId: string,
+  ): Promise<{ id: string; dayId: string }> {
     const activity = await this.prisma.tripActivity.findFirst({
       where: { id: activityId, day: { tripId } },
-      select: { id: true },
+      select: { id: true, dayId: true },
     });
     if (!activity) throw new NotFoundException('Activity not found on this trip');
+    return activity;
   }
 }

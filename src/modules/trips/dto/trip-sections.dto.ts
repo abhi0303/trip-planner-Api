@@ -9,6 +9,7 @@ import {
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -435,6 +436,36 @@ export class UpdateActivityDto extends CreateActivityDto {
   @IsString()
   @MaxLength(150)
   declare title: string;
+
+  @ApiPropertyOptional({
+    minimum: 1,
+    example: 5,
+    description:
+      'Move the activity to this day of the same trip. The day is created if it does not exist yet, and a number beyond the trip length is rejected. The activity goes to the end of the target day unless `sequence` is sent too. Omit this and the activity stays where it is.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  dayNumber?: number;
+}
+
+export class MoveActivitiesDto {
+  @ApiProperty({
+    type: [String],
+    description: 'Activities to move, all from the same trip. Applied in the order given.',
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID(undefined, { each: true })
+  @ArrayMaxSize(100)
+  activityIds: string[];
+
+  @ApiProperty({ minimum: 1, example: 5, description: 'Day to move them to.' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  dayNumber: number;
 }
 
 export class ReorderActivitiesDto {

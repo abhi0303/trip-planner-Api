@@ -5215,8 +5215,117 @@
         ]
       }
     },
+    "/trips/{tripId}/itinerary/activities/move": {
+      "put": {
+        "description": "All-or-nothing: the whole set lands on the target day or nothing moves. The day is created if it does not exist. Returns the full itinerary, since both the source and target days changed.",
+        "operationId": "Itinerary_moveActivities",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveActivitiesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TripDayDto"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed or the request was malformed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated but not allowed to perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource does not exist or is not visible to you",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Move several activities to one day",
+        "tags": [
+          "Itinerary"
+        ]
+      }
+    },
     "/trips/{tripId}/itinerary/activities/{activityId}": {
       "patch": {
+        "description": "Send dayNumber to move it to another day of the same trip — it keeps its id, place, kind and times. Omit dayNumber and only the fields sent are changed.",
         "operationId": "Itinerary_updateActivity",
         "parameters": [
           {
@@ -11104,6 +11213,28 @@
           "activityIds"
         ]
       },
+      "MoveActivitiesDto": {
+        "type": "object",
+        "properties": {
+          "activityIds": {
+            "description": "Activities to move, all from the same trip. Applied in the order given.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dayNumber": {
+            "type": "number",
+            "minimum": 1,
+            "example": 5,
+            "description": "Day to move them to."
+          }
+        },
+        "required": [
+          "activityIds",
+          "dayNumber"
+        ]
+      },
       "UpdateActivityDto": {
         "type": "object",
         "properties": {
@@ -11146,6 +11277,12 @@
           },
           "sequence": {
             "type": "number"
+          },
+          "dayNumber": {
+            "type": "number",
+            "minimum": 1,
+            "example": 5,
+            "description": "Move the activity to this day of the same trip. The day is created if it does not exist yet, and a number beyond the trip length is rejected. The activity goes to the end of the target day unless `sequence` is sent too. Omit this and the activity stays where it is."
           }
         }
       },

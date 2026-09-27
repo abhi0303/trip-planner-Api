@@ -22,6 +22,7 @@ import { MessageDto } from 'src/common/dto/message.dto';
 import { TripActivityDto, TripDayDto } from './dto/trip-response.dto';
 import {
   CreateActivityDto,
+  MoveActivitiesDto,
   ReorderActivitiesDto,
   UpdateActivityDto,
   UpsertTripDayDto,
@@ -108,9 +109,30 @@ export class ItineraryController {
     return this.itinerary.reorderActivities(tripId, dayNumber, user.id, dto);
   }
 
+  @Put('activities/move')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Move several activities to one day',
+    description:
+      'All-or-nothing: the whole set lands on the target day or nothing moves. The day is created if it does not exist. Returns the full itinerary, since both the source and target days changed.',
+  })
+  @ApiEnvelope(TripDayDto, { isArray: true })
+  @ApiErrorResponses(400, 401, 403, 404)
+  moveActivities(
+    @Param('tripId', ParseUUIDPipe) tripId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: MoveActivitiesDto,
+  ) {
+    return this.itinerary.moveActivities(tripId, user.id, dto);
+  }
+
   @Patch('activities/:activityId')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update an activity' })
+  @ApiOperation({
+    summary: 'Update an activity',
+    description:
+      'Send dayNumber to move it to another day of the same trip — it keeps its id, place, kind and times. Omit dayNumber and only the fields sent are changed.',
+  })
   @ApiEnvelope(TripActivityDto)
   @ApiErrorResponses(400, 401, 403, 404)
   updateActivity(
