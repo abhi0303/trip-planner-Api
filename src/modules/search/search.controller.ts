@@ -7,10 +7,10 @@ import {
   CurrentUser,
   Public,
 } from 'src/common/decorators';
-import { OffsetPaginationDto } from 'src/common/dto/pagination.dto';
 import { PlaceSummaryDto } from 'src/modules/places/dto/place-response.dto';
 import { TripCardDto } from 'src/modules/trips/dto/trip-response.dto';
 import { UserSummaryDto } from 'src/modules/users/dto/user-response.dto';
+import { SearchQueryDto } from './dto/search-query.dto';
 import { SearchService } from './search.service';
 
 @ApiTags('Search')
@@ -32,10 +32,10 @@ export class SearchController {
 
   @Get('places')
   @ApiOperation({ summary: 'Search places' })
-  @ApiQuery({ name: 'q', example: 'cola' })
+  @ApiQuery({ name: 'q', type: String, example: 'cola' })
   @ApiPaginatedEnvelope(PlaceSummaryDto)
-  places(@Query('q') q: string, @Query() page: OffsetPaginationDto) {
-    return this.search.places(q ?? '', page);
+  places(@Query() query: SearchQueryDto) {
+    return this.search.places(query.q ?? '', query);
   }
 
   @Get('trips')
@@ -43,25 +43,17 @@ export class SearchController {
     summary: 'Search trips',
     description: 'Matches title, destination, experience text and the places visited.',
   })
-  @ApiQuery({ name: 'q', example: 'budget goa trip' })
+  @ApiQuery({ name: 'q', type: String, example: 'budget goa trip' })
   @ApiPaginatedEnvelope(TripCardDto)
-  trips(
-    @Query('q') q: string,
-    @Query() page: OffsetPaginationDto,
-    @CurrentUser() viewer?: AuthenticatedUser,
-  ) {
-    return this.search.trips_(q ?? '', page, viewer?.id);
+  trips(@Query() query: SearchQueryDto, @CurrentUser() viewer?: AuthenticatedUser) {
+    return this.search.trips_(query.q ?? '', query, viewer?.id);
   }
 
   @Get('users')
   @ApiOperation({ summary: 'Search people' })
-  @ApiQuery({ name: 'q', example: 'sreyanse' })
+  @ApiQuery({ name: 'q', type: String, example: 'sreyanse' })
   @ApiPaginatedEnvelope(UserSummaryDto)
-  users(
-    @Query('q') q: string,
-    @Query() page: OffsetPaginationDto,
-    @CurrentUser() viewer?: AuthenticatedUser,
-  ) {
-    return this.search.users(q ?? '', page, viewer?.id);
+  users(@Query() query: SearchQueryDto, @CurrentUser() viewer?: AuthenticatedUser) {
+    return this.search.users(query.q ?? '', query, viewer?.id);
   }
 }

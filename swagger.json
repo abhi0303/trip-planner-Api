@@ -7314,15 +7314,6 @@
         "operationId": "Search_places",
         "parameters": [
           {
-            "name": "q",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "example": "cola",
-              "type": "string"
-            }
-          },
-          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -7341,6 +7332,15 @@
               "maximum": 50,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "cola",
+              "type": "string"
             }
           }
         ],
@@ -7393,15 +7393,6 @@
         "operationId": "Search_trips",
         "parameters": [
           {
-            "name": "q",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "example": "budget goa trip",
-              "type": "string"
-            }
-          },
-          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -7420,6 +7411,15 @@
               "maximum": 50,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "budget goa trip",
+              "type": "string"
             }
           }
         ],
@@ -7471,15 +7471,6 @@
         "operationId": "Search_users",
         "parameters": [
           {
-            "name": "q",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "example": "sreyanse",
-              "type": "string"
-            }
-          },
-          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -7498,6 +7489,15 @@
               "maximum": 50,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "sreyanse",
+              "type": "string"
             }
           }
         ],
