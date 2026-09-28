@@ -143,7 +143,11 @@ export class TripsController {
 
   @Delete(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a trip', description: 'Soft delete — recoverable by support.' })
+  @ApiOperation({
+    summary: 'Delete a trip',
+    description:
+      'Permanent. Also deletes the trip photos and every post shared from the trip, and removes their stored images unless an image is still in use elsewhere (an avatar, another trip or post).',
+  })
   @ApiEnvelope(MessageDto)
   @ApiErrorResponses(401, 403, 404)
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MediaType } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -16,8 +16,13 @@ const ALLOWED_MIME = new Set([
   'image/avif',
 ]);
 
+/** How many uploads a batch cleanup removes at once. */
+const CLEANUP_CONCURRENCY = 5;
+
 @Injectable()
 export class MediaService {
+  private readonly logger = new Logger(MediaService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -98,6 +103,44 @@ export class MediaService {
     if (media.storageKey) await this.storage.delete(media.storageKey);
 
     return true;
+  }
+
+  /**
+   * deleteIfUnreferenced for a set of media ids, e.g. every image of a trip
+   * that was just deleted. Each item gets the same in-use check, so an image
+   * that is also an avatar or another trip's photo survives.
+   *
+   * Never throws: by the time this runs the owning rows are already gone, and
+   * a storage hiccup should not turn a completed delete into an error. A
+   * failed item is logged and the rest still run. Returns how many went.
+   */
+  async deleteManyIfUnreferenced(userId: string, mediaIds: string[]): Promise<number> {
+    const ids = [...new Set(mediaIds)];
+    if (!ids.length) return 0;
+
+    const rows = await this.prisma.media.findMany({
+      where: { id: { in: ids }, userId },
+      select: { id: true, url: true },
+    });
+
+    let removed = 0;
+    for (let i = 0; i < rows.length; i += CLEANUP_CONCURRENCY) {
+      const batch = rows.slice(i, i + CLEANUP_CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map((row) => this.deleteIfUnreferenced(userId, row.url)),
+      );
+      results.forEach((result, j) => {
+        if (result.status === 'fulfilled') {
+          if (result.value) removed += 1;
+        } else {
+          const reason = result.reason;
+          this.logger.warn(
+            `Could not remove media ${batch[j].id}: ${reason instanceof Error ? reason.message : reason}`,
+          );
+        }
+      });
+    }
+    return removed;
   }
 
   async listMine(userId: string, limit = 50): Promise<MediaDto[]> {

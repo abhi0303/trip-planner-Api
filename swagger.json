@@ -2701,7 +2701,7 @@
         ]
       },
       "delete": {
-        "description": "Soft delete — recoverable by support.",
+        "description": "Permanent. Also deletes the trip photos and every post shared from the trip, and removes their stored images unless an image is still in use elsewhere (an avatar, another trip or post).",
         "operationId": "Trips_remove",
         "parameters": [
           {

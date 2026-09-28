@@ -305,7 +305,7 @@ Current surface: 73 paths, 92 operations, 66 schemas.
 | `PUT /trips/:id/ratings` | Step 9, upsert per rating group |
 | `POST /trips/:id/reality-checks` | Warnings for the next traveler |
 | `POST /trips/:id/publish` | Step 11 — validates completeness |
-| `POST /trips/:id/unpublish` · `DELETE /trips/:id` | Back to draft / soft delete |
+| `POST /trips/:id/unpublish` · `DELETE /trips/:id` | Back to draft / permanent delete, with its photos and posts |
 | `GET /trips/me?status=DRAFT` | "Continue your draft" |
 | `GET /trips/:idOrSlug` | Full experience in one response |
 | `GET /trips/meta/enums` | Subcategory + rating-criteria maps |

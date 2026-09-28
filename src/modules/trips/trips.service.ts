@@ -17,6 +17,7 @@ import {
   toNumber,
   uniqueSlug,
 } from 'src/common/utils';
+import { MediaService } from 'src/modules/media/media.service';
 import {
   PLACE_SUMMARY_SELECT,
   PlaceAggregatesService,
@@ -35,6 +36,7 @@ export class TripsService {
     private readonly expenses: ExpensesService,
     private readonly visibility: VisibilityService,
     private readonly placeAggregates: PlaceAggregatesService,
+    private readonly media: MediaService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -268,25 +270,91 @@ export class TripsService {
     return this.findOne(tripId, userId);
   }
 
+  /**
+   * Permanently deletes a trip together with everything made from it: its
+   * photos and the uploads behind them, and every post shared from it, with
+   * those posts' images, likes, comments and saves.
+   *
+   * A hard delete. The soft delete this replaced kept the trip's photo rows,
+   * and those rows are exactly what makes MediaService refuse to collect an
+   * upload, so every image of a deleted trip stayed in the bucket forever.
+   * Once the uploads are gone there is nothing worth restoring. Admin
+   * takedowns (ModerationService.removeContent) are still soft.
+   */
   async remove(tripId: string, userId: string): Promise<{ message: string }> {
     const trip = await this.assertOwner(tripId, userId);
 
-    await this.prisma.$transaction([
-      this.prisma.trip.update({
-        where: { id: tripId },
-        data: { deletedAt: new Date(), status: TripStatus.ARCHIVED },
-      }),
-      ...(trip.status === TripStatus.PUBLISHED
-        ? [
-            this.prisma.user.update({
-              where: { id: userId },
-              data: { tripCount: { decrement: 1 } },
-            }),
-          ]
-        : []),
-    ]);
+    const { mediaIds, placeIds } = await this.prisma.$transaction(async (tx) => {
+      // Read everything the cleanup needs before the rows it lives on go.
+      const photos = await tx.tripPhoto.findMany({ where: { tripId }, select: { mediaId: true } });
+      const places = await tx.tripPlace.findMany({ where: { tripId }, select: { placeId: true } });
+      // Soft-deleted posts too: their images still count as in use, and
+      // Post.tripId is SetNull, so they would otherwise outlive the trip.
+      const posts = await tx.post.findMany({
+        where: { tripId },
+        select: { id: true, userId: true, deletedAt: true, media: { select: { mediaId: true } } },
+      });
+      const postIds = posts.map((post) => post.id);
 
-    await this.refreshPlaceAggregates(tripId);
+      // Saves on the trip and on its posts cascade away with them, but each
+      // collection keeps a stored itemCount, which would otherwise drift.
+      const filed = await tx.save.groupBy({
+        by: ['collectionId'],
+        where: {
+          collectionId: { not: null },
+          OR: [{ tripId }, ...(postIds.length ? [{ postId: { in: postIds } }] : [])],
+        },
+        _count: { _all: true },
+      });
+      for (const { collectionId, _count } of filed) {
+        if (!collectionId) continue;
+        await tx.collection.update({
+          where: { id: collectionId },
+          data: { itemCount: { decrement: _count._all } },
+        });
+      }
+
+      if (postIds.length) {
+        await tx.post.deleteMany({ where: { id: { in: postIds } } });
+
+        // A soft-deleted post was already taken off postCount when it was deleted.
+        const livePosts = new Map<string, number>();
+        for (const post of posts) {
+          if (!post.deletedAt) livePosts.set(post.userId, (livePosts.get(post.userId) ?? 0) + 1);
+        }
+        for (const [authorId, count] of livePosts) {
+          await tx.user.update({
+            where: { id: authorId },
+            data: { postCount: { decrement: count } },
+          });
+        }
+      }
+
+      // Cascades photos, places, destinations, expenses, stays, ratings,
+      // reality checks, the itinerary and the trip's own saves.
+      await tx.trip.delete({ where: { id: tripId } });
+
+      if (trip.status === TripStatus.PUBLISHED) {
+        await tx.user.update({ where: { id: userId }, data: { tripCount: { decrement: 1 } } });
+      }
+
+      return {
+        mediaIds: [
+          ...photos.map((photo) => photo.mediaId),
+          ...posts.flatMap((post) => post.media.map((m) => m.mediaId)),
+          ...(trip.coverMediaId ? [trip.coverMediaId] : []),
+        ],
+        placeIds: places.map((place) => place.placeId),
+      };
+    });
+
+    // The trip row is gone, so refreshPlaceAggregates(tripId) would find no places.
+    await this.placeAggregates.refreshCache(placeIds);
+
+    // Only removes uploads nothing else uses: the same image can also be an
+    // avatar, or a photo on another trip or post.
+    await this.media.deleteManyIfUnreferenced(userId, mediaIds);
+
     return { message: 'Trip deleted' };
   }
 
