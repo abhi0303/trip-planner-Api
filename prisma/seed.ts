@@ -159,8 +159,10 @@ async function main(): Promise<void> {
     city: 'Canacona',
     category: PlaceCategory.BEACH,
     parentId: southGoa.id,
-    latitude: 15.0439,
-    longitude: 74.0186,
+    // From OpenStreetMap's natural:beach. The hand-written value this replaced
+    // sat ~5km inland, between Agonda's latitude and Palolem's longitude.
+    latitude: 15.05925,
+    longitude: 73.97015,
     description: 'Secluded beach with a freshwater lagoon behind the sand.',
   });
 
