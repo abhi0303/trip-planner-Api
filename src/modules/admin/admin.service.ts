@@ -3,9 +3,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, TripStatus, UserStatus } from '@prisma/client';
+import { StorageDriver } from 'src/modules/media/storage/storage.driver';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   AdminPlaceQueryDto,
@@ -19,7 +21,12 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AdminService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageDriver,
+  ) {}
 
   // -------------------------------------------------------------------------
   // Statistics
@@ -190,6 +197,163 @@ export class AdminService {
     return { message: `${user.username} is now ${dto.status}` };
   }
 
+  /**
+   * Removes a user and everything they made.
+   *
+   * The database cascades their trips, posts, photos, comments, likes, saves,
+   * collections and follows. Two things it cannot do on its own, and both are
+   * handled here:
+   *
+   *   - their uploaded files would stay in object storage forever
+   *   - counters denormalised onto *other* rows would be left too high — every
+   *     post they liked, every trip they saved, everyone who followed them
+   *
+   * Counters are recomputed from the surviving rows rather than decremented,
+   * so second-order effects (replies to their comments cascading away too)
+   * come out right instead of drifting.
+   */
+  async deleteUser(actorId: string, userId: string) {
+    if (actorId === userId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        tripCount: true,
+        postCount: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Everything whose counters will need recomputing once the user is gone.
+    const [following, followers, likes, comments, saves, media, ownTrips, ownPosts] =
+      await Promise.all([
+        this.prisma.follow.findMany({
+          where: { followerId: userId },
+          select: { followingId: true },
+        }),
+        this.prisma.follow.findMany({
+          where: { followingId: userId },
+          select: { followerId: true },
+        }),
+        this.prisma.like.findMany({ where: { userId }, select: { postId: true } }),
+        this.prisma.comment.findMany({ where: { userId }, select: { postId: true } }),
+        this.prisma.save.findMany({ where: { userId }, select: { postId: true, tripId: true } }),
+        this.prisma.media.findMany({ where: { userId }, select: { storageKey: true } }),
+        this.prisma.trip.count({ where: { userId } }),
+        this.prisma.post.count({ where: { userId } }),
+      ]);
+
+    // Their own posts and trips are about to disappear, so exclude them from
+    // the recount — there would be nothing left to count.
+    const ownPostIds = new Set(
+      (await this.prisma.post.findMany({ where: { userId }, select: { id: true } })).map(
+        (p) => p.id,
+      ),
+    );
+    const ownTripIds = new Set(
+      (await this.prisma.trip.findMany({ where: { userId }, select: { id: true } })).map(
+        (t) => t.id,
+      ),
+    );
+
+    const affectedUserIds = [
+      ...new Set([...following.map((f) => f.followingId), ...followers.map((f) => f.followerId)]),
+    ];
+    const affectedPostIds = [
+      ...new Set([
+        ...likes.map((l) => l.postId),
+        ...comments.map((c) => c.postId),
+        ...saves.map((s) => s.postId).filter((id): id is string => !!id),
+      ]),
+    ].filter((id) => !ownPostIds.has(id));
+    const affectedTripIds = [
+      ...new Set(saves.map((s) => s.tripId).filter((id): id is string => !!id)),
+    ].filter((id) => !ownTripIds.has(id));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.adminAction.create({
+        data: {
+          actorId,
+          action: 'USER_DELETED',
+          targetType: 'USER',
+          targetId: userId,
+          // The row itself is about to vanish, so the audit keeps a snapshot —
+          // otherwise the trail says an id was deleted and nothing more.
+          metadata: {
+            username: user.username,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            tripsDeleted: ownTrips,
+            postsDeleted: ownPosts,
+            filesDeleted: media.length,
+          },
+        },
+      });
+
+      // Cascades take the trips, posts, photos, comments, likes, saves,
+      // collections, follows, blocks, reports and sessions with it.
+      await tx.user.delete({ where: { id: userId } });
+
+      if (affectedUserIds.length) {
+        await tx.$executeRaw`
+          UPDATE "users" u SET
+            "followerCount"  = (SELECT count(*) FROM "follows" f WHERE f."followingId" = u.id),
+            "followingCount" = (SELECT count(*) FROM "follows" f WHERE f."followerId"  = u.id)
+          WHERE u.id = ANY(${affectedUserIds}::uuid[])`;
+      }
+
+      if (affectedPostIds.length) {
+        await tx.$executeRaw`
+          UPDATE "posts" p SET
+            "likeCount"    = (SELECT count(*) FROM "likes" l WHERE l."postId" = p.id),
+            "commentCount" = (SELECT count(*) FROM "comments" c WHERE c."postId" = p.id AND c."deletedAt" IS NULL),
+            "saveCount"    = (SELECT count(*) FROM "saves" s WHERE s."postId" = p.id)
+          WHERE p.id = ANY(${affectedPostIds}::uuid[])`;
+      }
+
+      if (affectedTripIds.length) {
+        await tx.$executeRaw`
+          UPDATE "trips" t SET
+            "saveCount" = (SELECT count(*) FROM "saves" s WHERE s."tripId" = t.id)
+          WHERE t.id = ANY(${affectedTripIds}::uuid[])`;
+      }
+    });
+
+    // After the rows are gone: a leaked file costs storage, a failed delete
+    // would leave the account half-removed.
+    let filesRemoved = 0;
+    for (const item of media) {
+      if (!item.storageKey) continue;
+      try {
+        await this.storage.delete(item.storageKey);
+        filesRemoved += 1;
+      } catch (error) {
+        this.logger.warn(
+          `Could not remove ${item.storageKey} for deleted user ${userId}: ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+      }
+    }
+
+    return {
+      message: `${user.username} and everything they created has been deleted`,
+      deleted: {
+        trips: ownTrips,
+        posts: ownPosts,
+        files: filesRemoved,
+      },
+    };
+  }
+
   // -------------------------------------------------------------------------
   // Trips
   // -------------------------------------------------------------------------
@@ -346,7 +510,7 @@ export class AdminService {
     return updated;
   }
 
-  async deletePlace(actorId: string, placeId: string) {
+  async deletePlace(actorId: string, placeId: string, force = false) {
     const place = await this.prisma.place.findUnique({
       where: { id: placeId },
       select: { id: true, name: true },
@@ -356,22 +520,59 @@ export class AdminService {
     const references = await this.countReferences(placeId);
     const total = Object.values(references).reduce((sum, n) => sum + n, 0);
 
-    // Refusing beats cascading: deleting a referenced place would strip the
-    // destination off somebody's trip without telling them.
-    if (total > 0) {
+    // Refusing by default beats cascading: a place is not the trip's property,
+    // so deleting it must not quietly strip the destination off somebody's
+    // trip. Merging keeps the trip pointing at something real.
+    if (total > 0 && !force) {
       throw new ConflictException({
         code: 'PLACE_IN_USE',
-        message: `"${place.name}" is still used ${total} time${total === 1 ? '' : 's'}. Merge it into another place instead of deleting it.`,
+        message: `"${place.name}" is still used ${total} time${total === 1 ? '' : 's'}. Merge it into another place, or repeat with ?force=true to detach it everywhere.`,
         details: { references },
       });
     }
 
-    await this.prisma.$transaction([
-      this.prisma.place.delete({ where: { id: placeId } }),
-      this.record(actorId, 'PLACE_DELETED', 'PLACE', placeId, undefined, { name: place.name }),
-    ]);
+    await this.prisma.$transaction(async (tx) => {
+      if (total > 0) {
+        // Detach rather than cascade. The links to this place go; the trips,
+        // posts and stays that referenced it stay exactly where they are.
+        await tx.tripDestination.deleteMany({ where: { placeId } });
+        await tx.tripPlace.deleteMany({ where: { placeId } });
+        await tx.tripStay.updateMany({ where: { placeId }, data: { placeId: null } });
+        await tx.tripPhoto.updateMany({ where: { placeId }, data: { placeId: null } });
+        await tx.tripRating.deleteMany({ where: { placeId } });
+        await tx.realityCheck.updateMany({ where: { placeId }, data: { placeId: null } });
+        await tx.tripActivity.updateMany({ where: { placeId }, data: { placeId: null } });
+        await tx.post.updateMany({ where: { placeId }, data: { placeId: null } });
+        await tx.trip.updateMany({
+          where: { destinationId: placeId },
+          data: { destinationId: null },
+        });
+        await tx.place.updateMany({ where: { parentId: placeId }, data: { parentId: null } });
+      }
 
-    return { message: `"${place.name}" deleted` };
+      await tx.place.delete({ where: { id: placeId } });
+
+      await tx.adminAction.create({
+        data: {
+          actorId,
+          action: force && total > 0 ? 'PLACE_FORCE_DELETED' : 'PLACE_DELETED',
+          targetType: 'PLACE',
+          targetId: placeId,
+          metadata: { name: place.name, detachedReferences: references },
+        },
+      });
+    });
+
+    // placeCount on a trip counts visited places, so detaching changes it.
+    await this.prisma.$executeRaw`
+      UPDATE "trips" t SET "placeCount" =
+        (SELECT count(*) FROM "trip_places" tp WHERE tp."tripId" = t.id)
+      WHERE t."deletedAt" IS NULL`;
+
+    return {
+      message: `"${place.name}" deleted`,
+      detachedReferences: total > 0 ? references : {},
+    };
   }
 
   /**

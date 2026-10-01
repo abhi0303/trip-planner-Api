@@ -9,7 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import {
   ApiEnvelope,
@@ -107,6 +107,19 @@ export class AdminController {
     return this.admin.setUserStatus(actor.id, id, dto);
   }
 
+  @Delete('users/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Delete a user and everything they created',
+    description:
+      'Permanent. Removes their trips, posts, photos, comments, likes, saves and follows, deletes their uploaded files from storage, and repairs the counters on everyone else. You cannot delete yourself.',
+  })
+  @ApiEnvelope(Object)
+  @ApiErrorResponses(401, 403, 404)
+  deleteUser(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.admin.deleteUser(actor.id, id);
+  }
+
   // --- Trips ---------------------------------------------------------------
 
   @Get('trips')
@@ -172,14 +185,24 @@ export class AdminController {
   @Delete('places/:id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({
-    summary: 'Delete an unused place',
+    summary: 'Delete a place',
     description:
-      'Answers 409 with reference counts while anything still points at it — merge instead.',
+      'Answers 409 with reference counts while anything still points at it — merging is usually what you want. ?force=true deletes it anyway, detaching it from every trip, post and stay rather than deleting them.',
   })
-  @ApiEnvelope(MessageDto)
+  @ApiQuery({
+    name: 'force',
+    required: false,
+    type: Boolean,
+    description: 'Detach the place from everything instead of refusing',
+  })
+  @ApiEnvelope(Object)
   @ApiErrorResponses(401, 403, 404, 409)
-  deletePlace(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.admin.deletePlace(actor.id, id);
+  deletePlace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query('force') force?: string,
+  ) {
+    return this.admin.deletePlace(actor.id, id, force === 'true');
   }
 
   // --- Audit ---------------------------------------------------------------

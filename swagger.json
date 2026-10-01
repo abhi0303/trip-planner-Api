@@ -1644,6 +1644,89 @@
         "tags": [
           "Admin"
         ]
+      },
+      "delete": {
+        "description": "Permanent. Removes their trips, posts, photos, comments, likes, saves and follows, deletes their uploaded files from storage, and repairs the counters on everyone else. You cannot delete yourself.",
+        "operationId": "Admin_deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Object"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated but not allowed to perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource does not exist or is not visible to you",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a user and everything they created",
+        "tags": [
+          "Admin"
+        ]
       }
     },
     "/admin/users/{id}/role": {
@@ -2212,7 +2295,7 @@
         ]
       },
       "delete": {
-        "description": "Answers 409 with reference counts while anything still points at it — merge instead.",
+        "description": "Answers 409 with reference counts while anything still points at it — merging is usually what you want. ?force=true deletes it anyway, detaching it from every trip, post and stay rather than deleting them.",
         "operationId": "Admin_deletePlace",
         "parameters": [
           {
@@ -2221,6 +2304,15 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "force",
+            "required": false,
+            "in": "query",
+            "description": "Detach the place from everything instead of refusing",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -2242,7 +2334,7 @@
                       "example": true
                     },
                     "data": {
-                      "$ref": "#/components/schemas/MessageDto"
+                      "$ref": "#/components/schemas/Object"
                     },
                     "timestamp": {
                       "type": "string",
@@ -2299,7 +2391,7 @@
             "bearer": []
           }
         ],
-        "summary": "Delete an unused place",
+        "summary": "Delete a place",
         "tags": [
           "Admin"
         ]
