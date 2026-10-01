@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ReportTargetType, UserRole, UserStatus } from '@prisma/client';
+import { ReportTargetType, UserRole } from '@prisma/client';
 import {
   ApiEnvelope,
   ApiErrorResponses,
@@ -101,18 +101,6 @@ export class ModerationController {
     @Body() dto: ResolveReportDto,
   ) {
     return this.moderation.resolveReport(id, admin.id, dto);
-  }
-
-  @Patch('admin/users/:userId/status')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Suspend or reinstate a user',
-    description: 'Suspending revokes every session immediately.',
-  })
-  @ApiEnvelope(MessageDto)
-  @ApiErrorResponses(401, 403, 404)
-  setStatus(@Param('userId', ParseUUIDPipe) userId: string, @Body('status') status: UserStatus) {
-    return this.moderation.setUserStatus(userId, status);
   }
 
   @Delete('admin/content/:targetType/:targetId')

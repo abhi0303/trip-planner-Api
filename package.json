@@ -26,6 +26,7 @@
     "prisma:reset": "prisma migrate reset --force",
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "places:coords": "ts-node -r tsconfig-paths/register scripts/backfill-place-coordinates.ts",
+    "admin:grant": "ts-node -r tsconfig-paths/register scripts/grant-admin.ts",
     "swagger:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger.ts",
     "swagger:check": "npm run swagger:generate && git diff --exit-code --stat swagger.json",
     "render:build": "npm ci --include=dev && node scripts/preflight-db.mjs && prisma generate && prisma migrate deploy && nest build",

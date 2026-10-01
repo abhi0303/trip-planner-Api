@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
+import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
@@ -40,6 +41,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     CommonModule,
     AuthModule,
+    AdminModule,
     UsersModule,
     PlacesModule,
     TripsModule,

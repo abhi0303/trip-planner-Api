@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ReportStatus, ReportTargetType, UserStatus } from '@prisma/client';
+import { ReportStatus, ReportTargetType } from '@prisma/client';
 import { buildPage, decodeCursor } from 'src/common/utils';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
@@ -154,26 +154,6 @@ export class ModerationService {
         resolvedAt: new Date(),
       },
     });
-  }
-
-  async setUserStatus(userId: string, status: UserStatus) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!user) throw new NotFoundException('User not found');
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: userId }, data: { status } }),
-      // Suspension must take effect now, not when the access token expires.
-      ...(status === UserStatus.SUSPENDED
-        ? [
-            this.prisma.refreshToken.updateMany({
-              where: { userId, revokedAt: null },
-              data: { revokedAt: new Date() },
-            }),
-          ]
-        : []),
-    ]);
-
-    return { message: `User is now ${status}` };
   }
 
   /** Admin content takedown: soft delete so it can be restored. */

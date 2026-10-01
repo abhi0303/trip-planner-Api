@@ -301,6 +301,7 @@ model User {
   blocksMade     Block[] @relation("blocker")
   blocksReceived Block[] @relation("blocked")
 
+  adminActions     AdminAction[]  @relation("adminActor")
   reportsMade      Report[]       @relation("reporter")
   reportsResolved  Report[]       @relation("resolver")
   notifications    Notification[] @relation("recipient")
@@ -909,6 +910,28 @@ model Notification {
 
   @@index([recipientId, readAt, createdAt])
   @@map("notifications")
+}
+
+/// Audit trail for destructive admin actions: role changes, suspensions,
+/// takedowns, place deletions and merges. Separate from Report, which records
+/// what a *user* flagged; this records what an admin did about it.
+model AdminAction {
+  id      String @id @default(uuid()) @db.Uuid
+  actorId String @db.Uuid
+  actor   User   @relation("adminActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  action     String
+  targetType String
+  targetId   String
+  reason     String?
+  /// Before/after values, e.g. { "from": "USER", "to": "ADMIN" }.
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+  @@map("admin_actions")
 }
 
 model Report {
